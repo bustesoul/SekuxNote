@@ -1,0 +1,24 @@
+name: sekuxnote
+description: "SekuxNote AI voice recording and meeting notes."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  package_info_plus: ^8.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
