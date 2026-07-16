@@ -4,9 +4,14 @@ import '../../../l10n/app_localizations.dart';
 
 /// Placeholder for the record library (Gate A default home).
 class RecordLibraryPage extends StatefulWidget {
-  const RecordLibraryPage({super.key, this.onStartRecording});
+  const RecordLibraryPage({
+    super.key,
+    this.onStartRecording,
+    this.onTranscribeAudio,
+  });
 
   final VoidCallback? onStartRecording;
+  final VoidCallback? onTranscribeAudio;
 
   @override
   State<RecordLibraryPage> createState() => _RecordLibraryPageState();
@@ -56,6 +61,13 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
                   onPressed: widget.onStartRecording,
                   icon: const Icon(Icons.fiber_manual_record, size: 18),
                   label: Text(l10n.recordsStartButton),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: const Key('records_transcribe_audio'),
+                  onPressed: widget.onTranscribeAudio,
+                  icon: const Icon(Icons.audio_file_outlined, size: 18),
+                  label: Text(l10n.recordsTranscribeAudio),
                 ),
                 const SizedBox(height: 32),
                 Text(

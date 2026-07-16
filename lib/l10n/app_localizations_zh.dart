@@ -72,14 +72,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTranscriptionTitle => '语音转写服务';
 
   @override
-  String get settingsTranscriptionSubtitle =>
-      'TranscriptionProviderConfig · 即将接入';
+  String get settingsTranscriptionSubtitle => '配置 OpenAI Audio、测试上传与单文件转写';
 
   @override
   String get settingsTextAiTitle => '文字 AI 服务';
 
   @override
-  String get settingsTextAiSubtitle => '本仓 Provider 配置 · 即将接入';
+  String get settingsTextAiSubtitle => '配置 Responses API 并测试连通性';
 
   @override
   String get settingsPrivacyTitle => '存储与隐私';
@@ -127,6 +126,129 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get keepAliveIncrement => '加一';
+
+  @override
+  String get recordsTranscribeAudio => '转写音频文件';
+
+  @override
+  String get providerNameLabel => '供应商名称';
+
+  @override
+  String get providerBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providerModelLabel => '模型';
+
+  @override
+  String get providerApiKeyLabel => 'API Key';
+
+  @override
+  String get providerApiKeyHint => '留空将保留已保存的 Key';
+
+  @override
+  String get providerEnabledLabel => '启用';
+
+  @override
+  String get providerCredentialSet => 'API Key 已安全保存';
+
+  @override
+  String get providerCredentialMissing => '尚未保存 API Key';
+
+  @override
+  String get providerSave => '保存配置';
+
+  @override
+  String get providerTestTextApi => '测试文字 API';
+
+  @override
+  String get providerTestTranscriptionApi => '用文件测试转写 API';
+
+  @override
+  String get providerTestNotice => '测试会发送一条很短的请求，并可能产生供应商用量。';
+
+  @override
+  String get providerTestRunning => '正在测试 API…';
+
+  @override
+  String get providerOpenWorkbench => '打开转写工作台';
+
+  @override
+  String get providerCapabilities => '批量转写、说话人标签与用量回报';
+
+  @override
+  String get providerTestResultTitle => 'API 测试结果';
+
+  @override
+  String get providerUsage => '用量';
+
+  @override
+  String get transcriptionWorkbenchTitle => '转写音频';
+
+  @override
+  String get transcriptionChooseFile => '选择音频文件';
+
+  @override
+  String get transcriptionNoFile => '尚未选择音频文件';
+
+  @override
+  String transcriptionSelectedFile(String name, String size) {
+    return '已选择：$name · $size';
+  }
+
+  @override
+  String get transcriptionConfirmTitle => '上传音频并转写？';
+
+  @override
+  String transcriptionConfirmBody(
+    String name,
+    String size,
+    String provider,
+    String model,
+  ) {
+    return '$name（$size）将发送至 $provider，使用 $model。这会产生一次转写 API 调用。';
+  }
+
+  @override
+  String get transcriptionConfirmAction => '上传并转写';
+
+  @override
+  String get transcriptionUploading => '正在上传并转写…';
+
+  @override
+  String get transcriptionResultTitle => '转写结果';
+
+  @override
+  String get transcriptionCopy => '复制文本';
+
+  @override
+  String get transcriptionCopied => '已复制转写文本';
+
+  @override
+  String get providerErrorCredentialMissing => '请先保存 API Key。';
+
+  @override
+  String get providerErrorProviderDisabled => '请先启用此供应商。';
+
+  @override
+  String get providerErrorInvalidBaseUrl => '请输入有效的 Base URL。';
+
+  @override
+  String get providerErrorUnauthorized => '供应商拒绝了此 API Key（401）。';
+
+  @override
+  String get providerErrorRateLimited => '已达到供应商限流（429），请稍后重试。';
+
+  @override
+  String get providerErrorUnavailable => '供应商暂时不可用，请稍后重试。';
+
+  @override
+  String get providerErrorAudioFileTooLarge => '音频文件必须小于 25 MB。';
+
+  @override
+  String get providerErrorInvalidResponse => '供应商返回了无法识别的响应。';
+
+  @override
+  String get providerErrorRequestFailed => 'API 请求失败，请检查配置和网络。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -197,14 +319,13 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get settingsTranscriptionTitle => '语音转写服务';
 
   @override
-  String get settingsTranscriptionSubtitle =>
-      'TranscriptionProviderConfig · 即将接入';
+  String get settingsTranscriptionSubtitle => '配置 OpenAI Audio、测试上传与单文件转写';
 
   @override
   String get settingsTextAiTitle => '文字 AI 服务';
 
   @override
-  String get settingsTextAiSubtitle => '本仓 Provider 配置 · 即将接入';
+  String get settingsTextAiSubtitle => '配置 Responses API 并测试连通性';
 
   @override
   String get settingsPrivacyTitle => '存储与隐私';
@@ -252,6 +373,129 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get keepAliveIncrement => '加一';
+
+  @override
+  String get recordsTranscribeAudio => '转写音频文件';
+
+  @override
+  String get providerNameLabel => '供应商名称';
+
+  @override
+  String get providerBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providerModelLabel => '模型';
+
+  @override
+  String get providerApiKeyLabel => 'API Key';
+
+  @override
+  String get providerApiKeyHint => '留空将保留已保存的 Key';
+
+  @override
+  String get providerEnabledLabel => '启用';
+
+  @override
+  String get providerCredentialSet => 'API Key 已安全保存';
+
+  @override
+  String get providerCredentialMissing => '尚未保存 API Key';
+
+  @override
+  String get providerSave => '保存配置';
+
+  @override
+  String get providerTestTextApi => '测试文字 API';
+
+  @override
+  String get providerTestTranscriptionApi => '用文件测试转写 API';
+
+  @override
+  String get providerTestNotice => '测试会发送一条很短的请求，并可能产生供应商用量。';
+
+  @override
+  String get providerTestRunning => '正在测试 API…';
+
+  @override
+  String get providerOpenWorkbench => '打开转写工作台';
+
+  @override
+  String get providerCapabilities => '批量转写、说话人标签与用量回报';
+
+  @override
+  String get providerTestResultTitle => 'API 测试结果';
+
+  @override
+  String get providerUsage => '用量';
+
+  @override
+  String get transcriptionWorkbenchTitle => '转写音频';
+
+  @override
+  String get transcriptionChooseFile => '选择音频文件';
+
+  @override
+  String get transcriptionNoFile => '尚未选择音频文件';
+
+  @override
+  String transcriptionSelectedFile(String name, String size) {
+    return '已选择：$name · $size';
+  }
+
+  @override
+  String get transcriptionConfirmTitle => '上传音频并转写？';
+
+  @override
+  String transcriptionConfirmBody(
+    String name,
+    String size,
+    String provider,
+    String model,
+  ) {
+    return '$name（$size）将发送至 $provider，使用 $model。这会产生一次转写 API 调用。';
+  }
+
+  @override
+  String get transcriptionConfirmAction => '上传并转写';
+
+  @override
+  String get transcriptionUploading => '正在上传并转写…';
+
+  @override
+  String get transcriptionResultTitle => '转写结果';
+
+  @override
+  String get transcriptionCopy => '复制文本';
+
+  @override
+  String get transcriptionCopied => '已复制转写文本';
+
+  @override
+  String get providerErrorCredentialMissing => '请先保存 API Key。';
+
+  @override
+  String get providerErrorProviderDisabled => '请先启用此供应商。';
+
+  @override
+  String get providerErrorInvalidBaseUrl => '请输入有效的 Base URL。';
+
+  @override
+  String get providerErrorUnauthorized => '供应商拒绝了此 API Key（401）。';
+
+  @override
+  String get providerErrorRateLimited => '已达到供应商限流（429），请稍后重试。';
+
+  @override
+  String get providerErrorUnavailable => '供应商暂时不可用，请稍后重试。';
+
+  @override
+  String get providerErrorAudioFileTooLarge => '音频文件必须小于 25 MB。';
+
+  @override
+  String get providerErrorInvalidResponse => '供应商返回了无法识别的响应。';
+
+  @override
+  String get providerErrorRequestFailed => 'API 请求失败，请检查配置和网络。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -322,14 +566,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsTranscriptionTitle => '語音轉寫服務';
 
   @override
-  String get settingsTranscriptionSubtitle =>
-      'TranscriptionProviderConfig · 即將接入';
+  String get settingsTranscriptionSubtitle => '設定 OpenAI Audio、測試上傳與單檔轉寫';
 
   @override
   String get settingsTextAiTitle => '文字 AI 服務';
 
   @override
-  String get settingsTextAiSubtitle => '本倉 Provider 設定 · 即將接入';
+  String get settingsTextAiSubtitle => '設定 Responses API 並測試連通性';
 
   @override
   String get settingsPrivacyTitle => '儲存與隱私';
@@ -377,4 +620,127 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get keepAliveIncrement => '加一';
+
+  @override
+  String get recordsTranscribeAudio => '轉寫音訊檔案';
+
+  @override
+  String get providerNameLabel => '供應商名稱';
+
+  @override
+  String get providerBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providerModelLabel => '模型';
+
+  @override
+  String get providerApiKeyLabel => 'API Key';
+
+  @override
+  String get providerApiKeyHint => '留空會保留已儲存的 Key';
+
+  @override
+  String get providerEnabledLabel => '啟用';
+
+  @override
+  String get providerCredentialSet => 'API Key 已安全儲存';
+
+  @override
+  String get providerCredentialMissing => '尚未儲存 API Key';
+
+  @override
+  String get providerSave => '儲存設定';
+
+  @override
+  String get providerTestTextApi => '測試文字 API';
+
+  @override
+  String get providerTestTranscriptionApi => '用檔案測試轉寫 API';
+
+  @override
+  String get providerTestNotice => '測試會傳送一個很短的請求，且可能產生供應商用量。';
+
+  @override
+  String get providerTestRunning => '正在測試 API…';
+
+  @override
+  String get providerOpenWorkbench => '開啟轉寫工作台';
+
+  @override
+  String get providerCapabilities => '批次轉寫、說話人標籤與用量回報';
+
+  @override
+  String get providerTestResultTitle => 'API 測試結果';
+
+  @override
+  String get providerUsage => '用量';
+
+  @override
+  String get transcriptionWorkbenchTitle => '轉寫音訊';
+
+  @override
+  String get transcriptionChooseFile => '選擇音訊檔案';
+
+  @override
+  String get transcriptionNoFile => '尚未選擇音訊檔案';
+
+  @override
+  String transcriptionSelectedFile(String name, String size) {
+    return '已選擇：$name · $size';
+  }
+
+  @override
+  String get transcriptionConfirmTitle => '上傳音訊並轉寫？';
+
+  @override
+  String transcriptionConfirmBody(
+    String name,
+    String size,
+    String provider,
+    String model,
+  ) {
+    return '$name（$size）將傳送至 $provider，使用 $model。這會產生一次轉寫 API 呼叫。';
+  }
+
+  @override
+  String get transcriptionConfirmAction => '上傳並轉寫';
+
+  @override
+  String get transcriptionUploading => '正在上傳並轉寫…';
+
+  @override
+  String get transcriptionResultTitle => '轉寫結果';
+
+  @override
+  String get transcriptionCopy => '複製文字';
+
+  @override
+  String get transcriptionCopied => '已複製轉寫文字';
+
+  @override
+  String get providerErrorCredentialMissing => '請先儲存 API Key。';
+
+  @override
+  String get providerErrorProviderDisabled => '請先啟用此供應商。';
+
+  @override
+  String get providerErrorInvalidBaseUrl => '請輸入有效的 Base URL。';
+
+  @override
+  String get providerErrorUnauthorized => '供應商拒絕了此 API Key（401）。';
+
+  @override
+  String get providerErrorRateLimited => '已達到供應商限流（429），請稍後重試。';
+
+  @override
+  String get providerErrorUnavailable => '供應商暫時無法使用，請稍後重試。';
+
+  @override
+  String get providerErrorAudioFileTooLarge => '音訊檔案必須小於 25 MB。';
+
+  @override
+  String get providerErrorInvalidResponse => '供應商回傳了無法辨識的回應。';
+
+  @override
+  String get providerErrorRequestFailed => 'API 請求失敗，請檢查設定與網路。';
 }

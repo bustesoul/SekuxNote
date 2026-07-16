@@ -76,13 +76,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsTranscriptionSubtitle =>
-      'TranscriptionProviderConfig · coming soon';
+      'Configure OpenAI Audio, test uploads, and transcribe one file';
 
   @override
   String get settingsTextAiTitle => 'Text AI services';
 
   @override
-  String get settingsTextAiSubtitle => 'In-repo provider config · coming soon';
+  String get settingsTextAiSubtitle =>
+      'Configure the Responses API and test connectivity';
 
   @override
   String get settingsPrivacyTitle => 'Storage and privacy';
@@ -133,4 +134,137 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get keepAliveIncrement => 'Increment';
+
+  @override
+  String get recordsTranscribeAudio => 'Transcribe audio file';
+
+  @override
+  String get providerNameLabel => 'Provider name';
+
+  @override
+  String get providerBaseUrlLabel => 'Base URL';
+
+  @override
+  String get providerModelLabel => 'Model';
+
+  @override
+  String get providerApiKeyLabel => 'API key';
+
+  @override
+  String get providerApiKeyHint => 'Leave blank to keep the saved key';
+
+  @override
+  String get providerEnabledLabel => 'Enabled';
+
+  @override
+  String get providerCredentialSet => 'API key is stored securely';
+
+  @override
+  String get providerCredentialMissing => 'No API key has been saved';
+
+  @override
+  String get providerSave => 'Save configuration';
+
+  @override
+  String get providerTestTextApi => 'Test text API';
+
+  @override
+  String get providerTestTranscriptionApi => 'Test transcription with a file';
+
+  @override
+  String get providerTestNotice =>
+      'The test sends a short request and may incur provider usage.';
+
+  @override
+  String get providerTestRunning => 'Testing API…';
+
+  @override
+  String get providerOpenWorkbench => 'Open transcription workspace';
+
+  @override
+  String get providerCapabilities =>
+      'Batch transcription, speaker labels, and usage reporting';
+
+  @override
+  String get providerTestResultTitle => 'API test result';
+
+  @override
+  String get providerUsage => 'Usage';
+
+  @override
+  String get transcriptionWorkbenchTitle => 'Transcribe audio';
+
+  @override
+  String get transcriptionChooseFile => 'Choose audio file';
+
+  @override
+  String get transcriptionNoFile => 'No audio file selected';
+
+  @override
+  String transcriptionSelectedFile(String name, String size) {
+    return 'Selected: $name · $size';
+  }
+
+  @override
+  String get transcriptionConfirmTitle => 'Upload audio for transcription?';
+
+  @override
+  String transcriptionConfirmBody(
+    String name,
+    String size,
+    String provider,
+    String model,
+  ) {
+    return '$name ($size) will be sent to $provider using $model. This creates one transcription API call.';
+  }
+
+  @override
+  String get transcriptionConfirmAction => 'Upload and transcribe';
+
+  @override
+  String get transcriptionUploading => 'Uploading and transcribing…';
+
+  @override
+  String get transcriptionResultTitle => 'Transcription result';
+
+  @override
+  String get transcriptionCopy => 'Copy text';
+
+  @override
+  String get transcriptionCopied => 'Transcript copied';
+
+  @override
+  String get providerErrorCredentialMissing =>
+      'Save an API key before continuing.';
+
+  @override
+  String get providerErrorProviderDisabled =>
+      'Enable this provider before continuing.';
+
+  @override
+  String get providerErrorInvalidBaseUrl => 'Enter a valid Base URL.';
+
+  @override
+  String get providerErrorUnauthorized =>
+      'The provider rejected this API key (401).';
+
+  @override
+  String get providerErrorRateLimited =>
+      'The provider rate limit was reached (429). Try again later.';
+
+  @override
+  String get providerErrorUnavailable =>
+      'The provider is temporarily unavailable. Try again later.';
+
+  @override
+  String get providerErrorAudioFileTooLarge =>
+      'The audio file must be smaller than 25 MB.';
+
+  @override
+  String get providerErrorInvalidResponse =>
+      'The provider returned an unexpected response.';
+
+  @override
+  String get providerErrorRequestFailed =>
+      'The API request failed. Check the configuration and network.';
 }

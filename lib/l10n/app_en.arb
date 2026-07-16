@@ -24,9 +24,9 @@
   "settingsAboutSubtitle": "Recording-first · local-first · BYOK",
   "settingsAboutLegalese": "Independent product shell · Task 1",
   "settingsTranscriptionTitle": "Speech transcription",
-  "settingsTranscriptionSubtitle": "TranscriptionProviderConfig · coming soon",
+  "settingsTranscriptionSubtitle": "Configure OpenAI Audio, test uploads, and transcribe one file",
   "settingsTextAiTitle": "Text AI services",
-  "settingsTextAiSubtitle": "In-repo provider config · coming soon",
+  "settingsTextAiSubtitle": "Configure the Responses API and test connectivity",
   "settingsPrivacyTitle": "Storage and privacy",
   "settingsPrivacySubtitle": "Usage, delete, and backup · coming soon",
   "recordingTitle": "Recording",
@@ -54,5 +54,57 @@
     }
   },
   "keepAliveCounterLabel": "Tab-local counter (IndexedStack keep-alive)",
-  "keepAliveIncrement": "Increment"
+  "keepAliveIncrement": "Increment",
+  "recordsTranscribeAudio": "Transcribe audio file",
+  "providerNameLabel": "Provider name",
+  "providerBaseUrlLabel": "Base URL",
+  "providerModelLabel": "Model",
+  "providerApiKeyLabel": "API key",
+  "providerApiKeyHint": "Leave blank to keep the saved key",
+  "providerEnabledLabel": "Enabled",
+  "providerCredentialSet": "API key is stored securely",
+  "providerCredentialMissing": "No API key has been saved",
+  "providerSave": "Save configuration",
+  "providerTestTextApi": "Test text API",
+  "providerTestTranscriptionApi": "Test transcription with a file",
+  "providerTestNotice": "The test sends a short request and may incur provider usage.",
+  "providerTestRunning": "Testing API…",
+  "providerOpenWorkbench": "Open transcription workspace",
+  "providerCapabilities": "Batch transcription, speaker labels, and usage reporting",
+  "providerTestResultTitle": "API test result",
+  "providerUsage": "Usage",
+  "transcriptionWorkbenchTitle": "Transcribe audio",
+  "transcriptionChooseFile": "Choose audio file",
+  "transcriptionNoFile": "No audio file selected",
+  "transcriptionSelectedFile": "Selected: {name} · {size}",
+  "@transcriptionSelectedFile": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "size": {"type": "String"}
+    }
+  },
+  "transcriptionConfirmTitle": "Upload audio for transcription?",
+  "transcriptionConfirmBody": "{name} ({size}) will be sent to {provider} using {model}. This creates one transcription API call.",
+  "@transcriptionConfirmBody": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "size": {"type": "String"},
+      "provider": {"type": "String"},
+      "model": {"type": "String"}
+    }
+  },
+  "transcriptionConfirmAction": "Upload and transcribe",
+  "transcriptionUploading": "Uploading and transcribing…",
+  "transcriptionResultTitle": "Transcription result",
+  "transcriptionCopy": "Copy text",
+  "transcriptionCopied": "Transcript copied",
+  "providerErrorCredentialMissing": "Save an API key before continuing.",
+  "providerErrorProviderDisabled": "Enable this provider before continuing.",
+  "providerErrorInvalidBaseUrl": "Enter a valid Base URL.",
+  "providerErrorUnauthorized": "The provider rejected this API key (401).",
+  "providerErrorRateLimited": "The provider rate limit was reached (429). Try again later.",
+  "providerErrorUnavailable": "The provider is temporarily unavailable. Try again later.",
+  "providerErrorAudioFileTooLarge": "The audio file must be smaller than 25 MB.",
+  "providerErrorInvalidResponse": "The provider returned an unexpected response.",
+  "providerErrorRequestFailed": "The API request failed. Check the configuration and network."
 }

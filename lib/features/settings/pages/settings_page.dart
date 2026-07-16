@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../providers/pages/provider_settings_page.dart';
+import '../../providers/pages/transcription_workbench_page.dart';
+import '../../providers/provider_controller.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// Placeholder settings hub (text AI / transcription / privacy to follow).
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, required this.providerController});
+
+  final ProviderController providerController;
 
   Future<void> _showAbout(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
@@ -21,7 +26,6 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
@@ -37,50 +41,51 @@ class SettingsPage extends StatelessWidget {
             onTap: () => _showAbout(context),
           ),
           const Divider(height: 1),
-          _UpcomingTile(
-            icon: Icons.graphic_eq,
-            title: l10n.settingsTranscriptionTitle,
-            subtitle: l10n.settingsTranscriptionSubtitle,
-            theme: theme,
+          ListTile(
+            key: const Key('settings_transcription_provider'),
+            leading: const Icon(Icons.graphic_eq),
+            title: Text(l10n.settingsTranscriptionTitle),
+            subtitle: Text(l10n.settingsTranscriptionSubtitle),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ProviderSettingsPage(
+                  controller: providerController,
+                  kind: ProviderSettingsKind.transcription,
+                  onOpenTranscriptionWorkbench: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => TranscriptionWorkbenchPage(
+                          controller: providerController,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
-          _UpcomingTile(
-            icon: Icons.smart_toy_outlined,
-            title: l10n.settingsTextAiTitle,
-            subtitle: l10n.settingsTextAiSubtitle,
-            theme: theme,
+          ListTile(
+            key: const Key('settings_text_provider'),
+            leading: const Icon(Icons.smart_toy_outlined),
+            title: Text(l10n.settingsTextAiTitle),
+            subtitle: Text(l10n.settingsTextAiSubtitle),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ProviderSettingsPage(
+                  controller: providerController,
+                  kind: ProviderSettingsKind.text,
+                ),
+              ),
+            ),
           ),
-          _UpcomingTile(
-            icon: Icons.shield_outlined,
-            title: l10n.settingsPrivacyTitle,
-            subtitle: l10n.settingsPrivacySubtitle,
-            theme: theme,
+          ListTile(
+            enabled: false,
+            leading: const Icon(Icons.shield_outlined),
+            title: Text(l10n.settingsPrivacyTitle),
+            subtitle: Text(l10n.settingsPrivacySubtitle),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _UpcomingTile extends StatelessWidget {
-  const _UpcomingTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.theme,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: theme.colorScheme.onSurfaceVariant),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      enabled: false,
     );
   }
 }

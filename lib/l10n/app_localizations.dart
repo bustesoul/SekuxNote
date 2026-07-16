@@ -229,7 +229,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTranscriptionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'TranscriptionProviderConfig · coming soon'**
+  /// **'Configure OpenAI Audio, test uploads, and transcribe one file'**
   String get settingsTranscriptionSubtitle;
 
   /// No description provided for @settingsTextAiTitle.
@@ -241,7 +241,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTextAiSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'In-repo provider config · coming soon'**
+  /// **'Configure the Responses API and test connectivity'**
   String get settingsTextAiSubtitle;
 
   /// No description provided for @settingsPrivacyTitle.
@@ -327,6 +327,239 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Increment'**
   String get keepAliveIncrement;
+
+  /// No description provided for @recordsTranscribeAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe audio file'**
+  String get recordsTranscribeAudio;
+
+  /// No description provided for @providerNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider name'**
+  String get providerNameLabel;
+
+  /// No description provided for @providerBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get providerBaseUrlLabel;
+
+  /// No description provided for @providerModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get providerModelLabel;
+
+  /// No description provided for @providerApiKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get providerApiKeyLabel;
+
+  /// No description provided for @providerApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank to keep the saved key'**
+  String get providerApiKeyHint;
+
+  /// No description provided for @providerEnabledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get providerEnabledLabel;
+
+  /// No description provided for @providerCredentialSet.
+  ///
+  /// In en, this message translates to:
+  /// **'API key is stored securely'**
+  String get providerCredentialSet;
+
+  /// No description provided for @providerCredentialMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'No API key has been saved'**
+  String get providerCredentialMissing;
+
+  /// No description provided for @providerSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save configuration'**
+  String get providerSave;
+
+  /// No description provided for @providerTestTextApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Test text API'**
+  String get providerTestTextApi;
+
+  /// No description provided for @providerTestTranscriptionApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Test transcription with a file'**
+  String get providerTestTranscriptionApi;
+
+  /// No description provided for @providerTestNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'The test sends a short request and may incur provider usage.'**
+  String get providerTestNotice;
+
+  /// No description provided for @providerTestRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Testing API…'**
+  String get providerTestRunning;
+
+  /// No description provided for @providerOpenWorkbench.
+  ///
+  /// In en, this message translates to:
+  /// **'Open transcription workspace'**
+  String get providerOpenWorkbench;
+
+  /// No description provided for @providerCapabilities.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch transcription, speaker labels, and usage reporting'**
+  String get providerCapabilities;
+
+  /// No description provided for @providerTestResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'API test result'**
+  String get providerTestResultTitle;
+
+  /// No description provided for @providerUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage'**
+  String get providerUsage;
+
+  /// No description provided for @transcriptionWorkbenchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribe audio'**
+  String get transcriptionWorkbenchTitle;
+
+  /// No description provided for @transcriptionChooseFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose audio file'**
+  String get transcriptionChooseFile;
+
+  /// No description provided for @transcriptionNoFile.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio file selected'**
+  String get transcriptionNoFile;
+
+  /// No description provided for @transcriptionSelectedFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected: {name} · {size}'**
+  String transcriptionSelectedFile(String name, String size);
+
+  /// No description provided for @transcriptionConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload audio for transcription?'**
+  String get transcriptionConfirmTitle;
+
+  /// No description provided for @transcriptionConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} ({size}) will be sent to {provider} using {model}. This creates one transcription API call.'**
+  String transcriptionConfirmBody(
+    String name,
+    String size,
+    String provider,
+    String model,
+  );
+
+  /// No description provided for @transcriptionConfirmAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload and transcribe'**
+  String get transcriptionConfirmAction;
+
+  /// No description provided for @transcriptionUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading and transcribing…'**
+  String get transcriptionUploading;
+
+  /// No description provided for @transcriptionResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription result'**
+  String get transcriptionResultTitle;
+
+  /// No description provided for @transcriptionCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy text'**
+  String get transcriptionCopy;
+
+  /// No description provided for @transcriptionCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcript copied'**
+  String get transcriptionCopied;
+
+  /// No description provided for @providerErrorCredentialMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Save an API key before continuing.'**
+  String get providerErrorCredentialMissing;
+
+  /// No description provided for @providerErrorProviderDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable this provider before continuing.'**
+  String get providerErrorProviderDisabled;
+
+  /// No description provided for @providerErrorInvalidBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid Base URL.'**
+  String get providerErrorInvalidBaseUrl;
+
+  /// No description provided for @providerErrorUnauthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider rejected this API key (401).'**
+  String get providerErrorUnauthorized;
+
+  /// No description provided for @providerErrorRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider rate limit was reached (429). Try again later.'**
+  String get providerErrorRateLimited;
+
+  /// No description provided for @providerErrorUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider is temporarily unavailable. Try again later.'**
+  String get providerErrorUnavailable;
+
+  /// No description provided for @providerErrorAudioFileTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'The audio file must be smaller than 25 MB.'**
+  String get providerErrorAudioFileTooLarge;
+
+  /// No description provided for @providerErrorInvalidResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider returned an unexpected response.'**
+  String get providerErrorInvalidResponse;
+
+  /// No description provided for @providerErrorRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The API request failed. Check the configuration and network.'**
+  String get providerErrorRequestFailed;
 }
 
 class _AppLocalizationsDelegate

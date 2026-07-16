@@ -5,6 +5,8 @@ import '../../features/record_library/pages/record_library_page.dart';
 import '../../features/recording/pages/recording_entry_page.dart';
 import '../../features/search/pages/search_page.dart';
 import '../../features/settings/pages/settings_page.dart';
+import '../../features/providers/pages/transcription_workbench_page.dart';
+import '../../features/providers/provider_controller.dart';
 import '../../l10n/app_localizations.dart';
 import 'app_session_controller.dart';
 import 'shell_tab.dart';
@@ -13,10 +15,11 @@ import 'shell_tab.dart';
 ///
 /// Long-running work is owned by [AppSessionController], not by pushed routes.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, this.session});
+  const AppShell({super.key, this.session, required this.providerController});
 
   /// Optional injected session (tests). When null, the shell owns one.
   final AppSessionController? session;
+  final ProviderController providerController;
 
   /// Width at which the shell switches to the desktop rail layout.
   static const double desktopBreakpoint = 800;
@@ -59,6 +62,15 @@ class AppShellState extends State<AppShell> {
     ).push(MaterialPageRoute<void>(builder: (_) => const RecordingEntryPage()));
   }
 
+  void openTranscriptionWorkbench() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            TranscriptionWorkbenchPage(controller: widget.providerController),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -72,13 +84,17 @@ class AppShellState extends State<AppShell> {
           RecordLibraryPage(
             key: const PageStorageKey<String>('tab_records'),
             onStartRecording: openRecordingEntry,
+            onTranscribeAudio: openTranscriptionWorkbench,
           ),
           AssistantPage(
             key: const PageStorageKey<String>('tab_assistant'),
             session: _session,
           ),
           const SearchPage(key: PageStorageKey<String>('tab_search')),
-          const SettingsPage(key: PageStorageKey<String>('tab_settings')),
+          SettingsPage(
+            key: const PageStorageKey<String>('tab_settings'),
+            providerController: widget.providerController,
+          ),
         ];
 
         final body = Column(

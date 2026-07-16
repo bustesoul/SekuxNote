@@ -93,6 +93,38 @@ void main() {
     expect(find.text(l10n.recordingPlaceholderHeadline), findsOneWidget);
   });
 
+  testWidgets('FR-SET exposes separate text and transcription settings', (
+    tester,
+  ) async {
+    final l10n = await pumpApp(tester);
+
+    await tester.tap(find.text(l10n.tabSettings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings_text_provider')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('provider_test_text')), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings_transcription_provider')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('provider_open_transcription_workbench')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('FR-IMP-001 record library opens transcription workspace', (
+    tester,
+  ) async {
+    final l10n = await pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('records_transcribe_audio')));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.transcriptionWorkbenchTitle), findsOneWidget);
+    expect(find.byKey(const Key('transcription_choose_file')), findsOneWidget);
+  });
+
   testWidgets('FR-NAV-004 IndexedStack keeps tab-local counter', (
     tester,
   ) async {
