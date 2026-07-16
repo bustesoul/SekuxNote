@@ -1,0 +1,95 @@
+version: 1
+generated_at: "2026-07-16"
+items:
+  - id: EN-AMI-1
+    lang: en
+    path: en_ami_es2008a_5min.m4a
+    duration_sec: 300
+    size_bytes: 2279948
+    sha256: d148928f6cc5c0e7c9a19db18a21cfcb664df962b59dc725879078c2cedc8921
+    audio:
+      container: m4a
+      codec: AAC-LC
+      sample_rate_hz: 16000
+      channels: 1
+    source:
+      corpus: AMI Meeting Corpus
+      recording: ES2008a.Mix-Headset.wav
+      clip_start_sec: 630
+      clip_end_sec: 930
+      url: https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/HeadsetAudio/ES2008a.Mix-Headset.wav
+    license:
+      spdx: CC-BY-4.0
+      url: https://creativecommons.org/licenses/by/4.0/
+    attribution: "AMI Meeting Corpus, University of Edinburgh et al."
+    validation:
+      annotated_speakers: 4
+      annotated_speech_sec: 429.1
+      annotated_overlap_sec: 144.9
+      mean_volume_dbfs: -35.6
+      max_volume_dbfs: -5.8
+      silence_ge_1s_at_minus_45_db_sec: 5.605
+    notes: "Headset mix; speech time sums all speakers and therefore includes overlap."
+
+  - id: EN-AMI-2
+    lang: en
+    path: en_ami_es2008b_3min.m4a
+    duration_sec: 180
+    size_bytes: 1296874
+    sha256: f48553a98d0c56f9ad239244f1c7c1bcc03bdc6b4732e5bb98efa3fb731b5b54
+    audio:
+      container: m4a
+      codec: AAC-LC
+      sample_rate_hz: 16000
+      channels: 1
+    source:
+      corpus: AMI Meeting Corpus
+      recording: ES2008b.Mix-Headset.wav
+      clip_start_sec: 570
+      clip_end_sec: 750
+      url: https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/HeadsetAudio/ES2008b.Mix-Headset.wav
+    license:
+      spdx: CC-BY-4.0
+      url: https://creativecommons.org/licenses/by/4.0/
+    attribution: "AMI Meeting Corpus, University of Edinburgh et al."
+    validation:
+      annotated_speakers: 4
+      annotated_speech_sec: 269.9
+      annotated_overlap_sec: 102.1
+      mean_volume_dbfs: -44.0
+      max_volume_dbfs: -12.1
+      silence_ge_1s_at_minus_45_db_sec: 11.344
+    notes: "Lower-level headset mix retained to exercise realistic input-level variation."
+
+  - id: ZH-A4-1
+    lang: zh
+    path: zh_aishell4_6min.m4a
+    duration_sec: 360
+    size_bytes: 2621204
+    sha256: c7f49904fbf66aa90059097a4277931138b9afedb959402067605f72beb1c6ae
+    audio:
+      container: m4a
+      codec: AAC-LC
+      sample_rate_hz: 16000
+      channels: 1
+    source:
+      corpus: AISHELL-4
+      recording: 20200706_L_R001S01C01.flac
+      source_channel_one_based: 3
+      source_sha256: 843204101be371da7e43e6adc021000d7c757df0da71c1b61190d5a78be95417
+      clip_start_sec: 780
+      clip_end_sec: 1140
+      canonical_url: https://openslr.org/111/
+      download_mirror: https://huggingface.co/datasets/AISHELL/AISHELL-4
+    license:
+      spdx: CC-BY-SA-4.0
+      url: https://creativecommons.org/licenses/by-sa/4.0/
+    attribution: "AISHELL-4, Beijing Shell Shell Technology Co., Ltd."
+    validation:
+      annotated_speakers: 7
+      annotated_speech_sec: 373.9
+      annotated_overlap_sec: 38.2
+      mean_volume_dbfs: -40.3
+      max_volume_dbfs: -15.1
+      silence_ge_1s_at_minus_45_db_sec: 0.0
+    notes: "Channel 3 had the highest RMS level among the eight array channels in this window; speech time sums all speakers and includes overlap."
