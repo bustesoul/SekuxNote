@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local licensed audio corpus; commit only its manifest and usage notes.
+/test_assets/**
+!/test_assets/README.md
+!/test_assets/manifest.yaml
