@@ -107,6 +107,31 @@ flutter analyze
 flutter test
 ```
 
+## GitHub Actions 多平台构建
+
+默认分支提供手动工作流 `Flutter Multi-Platform Build Stable 3.44`。在仓库的
+Actions 页面运行后，Android、iOS、macOS、Windows 和 Linux 会作为独立 job
+并发构建；可以按需关闭任一平台。未发布的产物保留 14 天。
+
+产物包括：
+
+- Android：按 ABI 拆分的 APK；
+- iOS：未签名 IPA，需要后续签名才能安装到普通设备；
+- macOS：未签名 DMG；
+- Windows：便携 ZIP 和 Inno Setup 安装程序；
+- Linux：tar.gz、AppImage、DEB 和 RPM。
+
+勾选“发布到 GitHub Release”时必须填写 Release 标签。构建成功后，单独的发布
+job 会汇总所选平台产物并创建或更新对应 Release。
+
+Android 未配置密钥时会继续使用项目现有的 debug 签名，适合内部测试。正式发布
+前应在仓库 Actions secrets 中配置以下四项：
+
+- `SIGN_KEYSTORE_BASE64`：Android keystore 文件的 Base64 内容；
+- `KEYSTORE_PASSWORD`：keystore 密码；
+- `KEY_ALIAS`：签名别名；
+- `KEY_PASSWORD`：签名密钥密码。
+
 主要代码目录：
 
 ```text
