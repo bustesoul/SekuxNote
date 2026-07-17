@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-
+import '../../app/storage/app_data_directory.dart';
 import 'openai_api_client.dart';
 import 'provider_models.dart';
 
@@ -30,7 +29,7 @@ class PlatformAudioChunker implements AudioChunker {
       throw const ProviderRequestException('invalidChunkDuration');
     }
 
-    final directory = await getApplicationSupportDirectory();
+    final directory = await getSekuxNoteDataDirectory();
     final taskDirectory = Directory(
       '${directory.path}/transcription_chunks/'
       '${DateTime.now().microsecondsSinceEpoch}',

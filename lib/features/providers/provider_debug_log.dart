@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+import '../../app/storage/app_data_directory.dart';
 
 /// Local-only diagnostics for provider integration debugging.
 ///
@@ -14,7 +14,7 @@ abstract final class ProviderDebugLog {
     Map<String, Object?> details = const {},
   }) async {
     try {
-      final directory = await getApplicationSupportDirectory();
+      final directory = await getSekuxNoteDataDirectory();
       final entry = jsonEncode({
         'timestamp': DateTime.now().toIso8601String(),
         'event': event,

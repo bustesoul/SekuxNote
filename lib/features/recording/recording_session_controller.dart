@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
+import '../../app/storage/app_data_directory.dart';
 import 'package:record/record.dart';
 
 import '../providers/dashscope_realtime_client.dart';
@@ -328,8 +328,8 @@ class RecordingSessionController extends ChangeNotifier {
   Future<Directory> _root() async {
     final configured = _recordingsDirectory;
     if (configured != null) return configured;
-    final support = await getApplicationSupportDirectory();
-    return _recordingsDirectory = Directory('${support.path}/recordings');
+    final dataDirectory = await getSekuxNoteDataDirectory();
+    return _recordingsDirectory = Directory('${dataDirectory.path}/recordings');
   }
 
   Future<void> _persist(RecordingEntry entry) async {

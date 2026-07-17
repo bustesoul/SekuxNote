@@ -1,7 +1,6 @@
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
-
+import '../../app/storage/app_data_directory.dart';
 import 'provider_models.dart';
 
 abstract interface class TaskAudioStore {
@@ -14,7 +13,7 @@ abstract interface class TaskAudioStore {
 class SandboxedTaskAudioStore implements TaskAudioStore {
   @override
   Future<String> save(String taskId, SelectedAudioFile source) async {
-    final directory = await getApplicationSupportDirectory();
+    final directory = await getSekuxNoteDataDirectory();
     final extension =
         RegExp(r'\.([A-Za-z0-9]+)$').firstMatch(source.name)?.group(1) ?? 'm4a';
     final file = File('${directory.path}/task_audio/$taskId/source.$extension');
@@ -36,7 +35,7 @@ class SandboxedTaskAudioStore implements TaskAudioStore {
 
   @override
   Future<void> delete(String taskId) async {
-    final directory = await getApplicationSupportDirectory();
+    final directory = await getSekuxNoteDataDirectory();
     final taskDirectory = Directory('${directory.path}/task_audio/$taskId');
     if (await taskDirectory.exists()) {
       await taskDirectory.delete(recursive: true);

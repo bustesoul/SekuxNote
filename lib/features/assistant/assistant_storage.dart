@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../../app/storage/app_data_directory.dart';
 import 'assistant_models.dart';
 
 abstract interface class AssistantStore {
@@ -20,7 +20,7 @@ class SqliteAssistantStore implements AssistantStore {
   final Database _database;
 
   static Future<SqliteAssistantStore> open() async {
-    final directory = await getApplicationSupportDirectory();
+    final directory = await getSekuxNoteDataDirectory();
     return openAtPath('${directory.path}/sekuxnote.sqlite');
   }
 
