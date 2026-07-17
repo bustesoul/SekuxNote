@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../../providers/provider_controller.dart';
 import '../../providers/provider_models.dart';
@@ -165,10 +166,48 @@ class _RecordSummarySheetState extends State<RecordSummarySheet> {
       : <String>{provider.model, ...provider.models}.toList(growable: false);
 }
 
-class _ArtifactCard extends StatelessWidget {
+bool isMarkdownSummary(String content) {
+  final value = content.trim();
+  if (value.isEmpty) return false;
+  final blockPatterns = <RegExp>[
+    RegExp(r'^#{1,6}\s+\S', multiLine: true),
+    RegExp(r'^\s*[-*+]\s+\S', multiLine: true),
+    RegExp(r'^\s*\d+[.)]\s+\S', multiLine: true),
+    RegExp(r'^>\s+\S', multiLine: true),
+    RegExp(r'^```[^\n]*$', multiLine: true),
+    RegExp(r'^\s*---+\s*$', multiLine: true),
+    RegExp(r'^\s*\|?.+\|.+\|?\s*\n\s*\|?\s*:?-{3,}', multiLine: true),
+  ];
+  if (blockPatterns.any((pattern) => pattern.hasMatch(value))) return true;
+  return RegExp(r'(\*\*|__)[^\n]+(\*\*|__)').hasMatch(value) ||
+      RegExp(r'`[^`\n]+`').hasMatch(value) ||
+      RegExp(r'!?\[[^\]]+\]\([^)]+\)').hasMatch(value);
+}
+
+enum _ArtifactDisplayMode { source, rendered }
+
+class _ArtifactCard extends StatefulWidget {
   const _ArtifactCard({required this.artifact});
 
   final NoteArtifact artifact;
+
+  @override
+  State<_ArtifactCard> createState() => _ArtifactCardState();
+}
+
+class _ArtifactCardState extends State<_ArtifactCard> {
+  late _ArtifactDisplayMode _displayMode;
+
+  NoteArtifact get artifact => widget.artifact;
+  bool get _isMarkdown => isMarkdownSummary(artifact.markdown);
+
+  @override
+  void initState() {
+    super.initState();
+    _displayMode = isMarkdownSummary(artifact.markdown)
+        ? _ArtifactDisplayMode.rendered
+        : _ArtifactDisplayMode.source;
+  }
 
   @override
   Widget build(BuildContext context) => Card(
@@ -196,7 +235,41 @@ class _ArtifactCard extends StatelessWidget {
           ),
           if (artifact.markdown.isNotEmpty) ...[
             const Divider(height: 24),
-            SelectionArea(child: Text(artifact.markdown)),
+            if (_isMarkdown)
+              Align(
+                alignment: Alignment.centerRight,
+                child: SegmentedButton<_ArtifactDisplayMode>(
+                  key: Key('summary_view_toggle_${artifact.id}'),
+                  segments: const [
+                    ButtonSegment(
+                      value: _ArtifactDisplayMode.source,
+                      label: Text('原文'),
+                      icon: Icon(Icons.code, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: _ArtifactDisplayMode.rendered,
+                      label: Text('渲染'),
+                      icon: Icon(Icons.article_outlined, size: 16),
+                    ),
+                  ],
+                  selected: {_displayMode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (value) =>
+                      setState(() => _displayMode = value.first),
+                ),
+              ),
+            if (_isMarkdown) const SizedBox(height: 12),
+            if (_isMarkdown && _displayMode == _ArtifactDisplayMode.rendered)
+              MarkdownBody(
+                key: Key('summary_markdown_${artifact.id}'),
+                data: artifact.markdown,
+                selectable: true,
+              )
+            else
+              SelectionArea(
+                key: Key('summary_source_${artifact.id}'),
+                child: Text(artifact.markdown),
+              ),
           ],
           if (artifact.errorMessage != null) ...[
             const SizedBox(height: 8),
