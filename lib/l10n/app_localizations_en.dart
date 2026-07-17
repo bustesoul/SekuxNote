@@ -322,6 +322,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transcriptionTaskDeleted => 'Transcription record deleted';
 
   @override
+  String get recordingDelete => 'Delete recording';
+
+  @override
+  String get recordingDeleteConfirmTitle => 'Delete recording?';
+
+  @override
+  String get recordingDeleteConfirmBody =>
+      'This permanently removes the local audio, transcript draft, and recording metadata.';
+
+  @override
+  String get recordingDeleted => 'Recording deleted';
+
+  @override
   String get providerErrorCredentialMissing =>
       'Save an API key before continuing.';
 

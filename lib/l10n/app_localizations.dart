@@ -662,6 +662,30 @@ abstract class AppLocalizations {
   /// **'Transcription record deleted'**
   String get transcriptionTaskDeleted;
 
+  /// No description provided for @recordingDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete recording'**
+  String get recordingDelete;
+
+  /// No description provided for @recordingDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete recording?'**
+  String get recordingDeleteConfirmTitle;
+
+  /// No description provided for @recordingDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently removes the local audio, transcript draft, and recording metadata.'**
+  String get recordingDeleteConfirmBody;
+
+  /// No description provided for @recordingDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording deleted'**
+  String get recordingDeleted;
+
   /// No description provided for @providerErrorCredentialMissing.
   ///
   /// In en, this message translates to:

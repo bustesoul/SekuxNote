@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +12,9 @@ import 'package:sekuxnote/features/providers/provider_models.dart';
 import 'package:sekuxnote/features/providers/provider_storage.dart';
 import 'package:sekuxnote/features/providers/task_audio_store.dart';
 import 'package:sekuxnote/features/record_library/pages/record_library_page.dart';
+import 'package:sekuxnote/features/recording/recording_models.dart';
 import 'package:sekuxnote/features/recording/recording_session_controller.dart';
+import 'package:sekuxnote/features/recording/wav_audio_file.dart';
 import 'package:sekuxnote/l10n/app_localizations.dart';
 
 void main() {
@@ -99,5 +104,81 @@ void main() {
     await tester.pump();
     expect(find.text('meeting-2.m4a'), findsOneWidget);
     expect(find.text('meeting-3.m4a'), findsNothing);
+  });
+
+  testWidgets('recording details deletes local recording after confirmation', (
+    tester,
+  ) async {
+    final root = await Directory.systemTemp.createTemp(
+      'sekuxnote-record-delete-test-',
+    );
+    final directory = Directory('${root.path}/record-1')..createSync();
+    final audio = File('${directory.path}/audio.wav');
+    await audio.writeAsBytes([...WavAudioFile.header(4), 1, 2, 3, 4]);
+    final now = DateTime(2026, 7, 17, 12);
+    final recording = RecordingEntry(
+      id: 'record-1',
+      title: '待删除录音',
+      status: RecordingStatus.ready,
+      createdAt: now,
+      updatedAt: now,
+      audioPath: audio.path,
+      durationMilliseconds: 0,
+      realtimeEnabled: false,
+      realtimeStatus: RealtimeRecordingStatus.disabled,
+    );
+    await File(
+      '${directory.path}/recording.json',
+    ).writeAsString(jsonEncode(recording.toJson()));
+    final providerController = ProviderController.inMemory();
+    final assistantController = AssistantController.inMemory(
+      providerController,
+    );
+    final recordingController = RecordingSessionController(
+      providerController: providerController,
+      recordingsDirectory: root,
+    );
+    await assistantController.load();
+    await recordingController.load();
+    addTearDown(() async {
+      recordingController.dispose();
+      assistantController.dispose();
+      providerController.dispose();
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: RecordLibraryPage(
+          providerController: providerController,
+          assistantController: assistantController,
+          recordingController: recordingController,
+          mode: RecordLibraryMode.library,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('待删除录音'));
+    await tester.pumpAndSettle();
+    final delete = find.byKey(const Key('recording_delete_record-1'));
+    await tester.ensureVisible(delete);
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('recording_delete_confirm_record-1')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(recordingController.recordings, isEmpty);
+    expect(await directory.exists(), isFalse);
+    expect(find.text('待删除录音'), findsNothing);
   });
 }

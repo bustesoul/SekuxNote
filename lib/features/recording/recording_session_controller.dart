@@ -277,6 +277,18 @@ class RecordingSessionController extends ChangeNotifier {
     return completed;
   }
 
+  Future<void> deleteRecording(String id) async {
+    await load();
+    if (_active?.id == id) throw StateError('recordingIsActive');
+    final index = _recordings.indexWhere((entry) => entry.id == id);
+    if (index < 0) return;
+
+    final directory = Directory('${(await _root()).path}/$id');
+    if (await directory.exists()) await directory.delete(recursive: true);
+    _recordings.removeAt(index);
+    notifyListeners();
+  }
+
   void _onAudio(Uint8List bytes) {
     try {
       _writer?.add(bytes);

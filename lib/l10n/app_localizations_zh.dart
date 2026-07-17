@@ -306,6 +306,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get transcriptionTaskDeleted => '已删除转写记录';
 
   @override
+  String get recordingDelete => '删除录音';
+
+  @override
+  String get recordingDeleteConfirmTitle => '删除录音？';
+
+  @override
+  String get recordingDeleteConfirmBody => '将永久删除本地音频、实时临时稿和录音元数据。';
+
+  @override
+  String get recordingDeleted => '已删除录音';
+
+  @override
   String get providerErrorCredentialMissing => '请先保存 API Key。';
 
   @override
@@ -750,6 +762,18 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get transcriptionTaskDeleted => '已删除转写记录';
 
   @override
+  String get recordingDelete => '删除录音';
+
+  @override
+  String get recordingDeleteConfirmTitle => '删除录音？';
+
+  @override
+  String get recordingDeleteConfirmBody => '将永久删除本地音频、实时临时稿和录音元数据。';
+
+  @override
+  String get recordingDeleted => '已删除录音';
+
+  @override
   String get providerErrorCredentialMissing => '请先保存 API Key。';
 
   @override
@@ -1192,6 +1216,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get transcriptionTaskDeleted => '已刪除轉寫記錄';
+
+  @override
+  String get recordingDelete => '刪除錄音';
+
+  @override
+  String get recordingDeleteConfirmTitle => '刪除錄音？';
+
+  @override
+  String get recordingDeleteConfirmBody => '將永久刪除本機音訊、即時暫存稿和錄音中繼資料。';
+
+  @override
+  String get recordingDeleted => '已刪除錄音';
 
   @override
   String get providerErrorCredentialMissing => '請先儲存 API Key。';

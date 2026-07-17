@@ -96,6 +96,45 @@ void main() {
   });
 
   test(
+    'deleteRecording removes the recording directory and list entry',
+    () async {
+      final directory = Directory('${root.path}/delete-me')..createSync();
+      final wav = File('${directory.path}/audio.wav');
+      await wav.writeAsBytes([
+        ...WavAudioFile.header(4),
+        1,
+        2,
+        3,
+        4,
+      ]);
+      await _writeEntry(
+        directory,
+        _entry(
+          id: 'delete-me',
+          audioPath: wav.path,
+          status: RecordingStatus.ready,
+        ),
+      );
+      final provider = ProviderController.inMemory();
+      final controller = RecordingSessionController(
+        providerController: provider,
+        recordingsDirectory: root,
+        capture: _FakeCapture(),
+      );
+      addTearDown(() {
+        controller.dispose();
+        provider.dispose();
+      });
+
+      await controller.load();
+      await controller.deleteRecording('delete-me');
+
+      expect(controller.recordings, isEmpty);
+      expect(await directory.exists(), isFalse);
+    },
+  );
+
+  test(
     'an interrupted PCM part is recovered without touching it first',
     () async {
       final directory = Directory('${root.path}/interrupted')..createSync();

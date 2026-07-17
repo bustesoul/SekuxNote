@@ -401,34 +401,82 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
   Future<void> _showRecordingDetails(
     BuildContext pageContext,
     RecordingEntry recording,
-  ) => showModalBottomSheet<void>(
-    context: pageContext,
-    isScrollControlled: true,
-    builder: (context) => _detailSheet(
-      context,
-      title: recording.title,
-      backKey: const Key('recording_detail_back'),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-        children: [
-          Text('原始音频：${recording.audioPath}'),
-          const SizedBox(height: 16),
-          const Text('实时文字（临时稿）'),
-          const SizedBox(height: 8),
-          SelectionArea(child: Text(recording.realtimeTranscript)),
-          if (recordAiSourceFromRecording(recording) case final source?) ...[
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              key: Key('recording_summary_${recording.id}'),
-              onPressed: () => _showSummary(pageContext, source),
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('AI 总结'),
-            ),
+  ) {
+    final l10n = AppLocalizations.of(pageContext);
+    return showModalBottomSheet<void>(
+      context: pageContext,
+      isScrollControlled: true,
+      builder: (sheetContext) => _detailSheet(
+        sheetContext,
+        title: recording.title,
+        backKey: const Key('recording_detail_back'),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          children: [
+            Text('原始音频：${recording.audioPath}'),
+            const SizedBox(height: 16),
+            const Text('实时文字（临时稿）'),
+            const SizedBox(height: 8),
+            SelectionArea(child: Text(recording.realtimeTranscript)),
+            if (recordAiSourceFromRecording(recording) case final source?) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                key: Key('recording_summary_${recording.id}'),
+                onPressed: () => _showSummary(pageContext, source),
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('AI 总结'),
+              ),
+            ],
+            if (widget.recordingController.active?.id != recording.id) ...[
+              const SizedBox(height: 24),
+              TextButton.icon(
+                key: Key('recording_delete_${recording.id}'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(sheetContext).colorScheme.error,
+                ),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: pageContext,
+                    builder: (dialogContext) => AlertDialog(
+                      title: Text(l10n.recordingDeleteConfirmTitle),
+                      content: Text(l10n.recordingDeleteConfirmBody),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: Text(
+                            MaterialLocalizations.of(
+                              dialogContext,
+                            ).cancelButtonLabel,
+                          ),
+                        ),
+                        FilledButton(
+                          key: Key('recording_delete_confirm_${recording.id}'),
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: Text(l10n.recordingDelete),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true) return;
+                  await widget.recordingController.deleteRecording(
+                    recording.id,
+                  );
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  if (pageContext.mounted) {
+                    ScaffoldMessenger.of(pageContext).showSnackBar(
+                      SnackBar(content: Text(l10n.recordingDeleted)),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: Text(l10n.recordingDelete),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _detailSheet(
     BuildContext context, {
