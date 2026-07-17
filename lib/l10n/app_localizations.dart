@@ -489,6 +489,53 @@ abstract class AppLocalizations {
   /// **'Uploading and transcribing…'**
   String get transcriptionUploading;
 
+  /// No description provided for @providerChunkDurationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk duration (seconds)'**
+  String get providerChunkDurationLabel;
+
+  /// No description provided for @providerChunkDurationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Each audio chunk is exported before upload.'**
+  String get providerChunkDurationHint;
+
+  /// No description provided for @providerUploadConcurrencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Concurrent uploads'**
+  String get providerUploadConcurrencyLabel;
+
+  /// No description provided for @providerUploadConcurrencyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'1–4 requests at a time; the default is 2.'**
+  String get providerUploadConcurrencyHint;
+
+  /// No description provided for @providerTranscriptionLanguageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription language'**
+  String get providerTranscriptionLanguageLabel;
+
+  /// No description provided for @providerTranscriptionLanguageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'ISO 639-1 code, for example zh or en.'**
+  String get providerTranscriptionLanguageHint;
+
+  /// No description provided for @transcriptionTaskBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcribing {fileName} · {completedChunks}/{totalChunks} chunks · {elapsedSeconds}s'**
+  String transcriptionTaskBanner(
+    String fileName,
+    int completedChunks,
+    int totalChunks,
+    int elapsedSeconds,
+  );
+
   /// No description provided for @transcriptionResultTitle.
   ///
   /// In en, this message translates to:
@@ -506,6 +553,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transcript copied'**
   String get transcriptionCopied;
+
+  /// No description provided for @transcriptionTaskFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription task failed'**
+  String get transcriptionTaskFailedTitle;
+
+  /// No description provided for @transcriptionTasksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription tasks'**
+  String get transcriptionTasksTitle;
+
+  /// No description provided for @transcriptionTasksBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Every upload is kept here, including failed tasks.'**
+  String get transcriptionTasksBody;
+
+  /// No description provided for @transcriptionTaskStatusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get transcriptionTaskStatusLabel;
+
+  /// No description provided for @transcriptionTaskChunkProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Chunk progress'**
+  String get transcriptionTaskChunkProgress;
+
+  /// No description provided for @transcriptionTaskQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get transcriptionTaskQueued;
+
+  /// No description provided for @transcriptionTaskRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get transcriptionTaskRunning;
+
+  /// No description provided for @transcriptionTaskSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Succeeded'**
+  String get transcriptionTaskSucceeded;
+
+  /// No description provided for @transcriptionTaskFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get transcriptionTaskFailed;
+
+  /// No description provided for @transcriptionTaskStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get transcriptionTaskStopped;
+
+  /// No description provided for @transcriptionTaskStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop task'**
+  String get transcriptionTaskStop;
+
+  /// No description provided for @transcriptionTaskRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry unfinished chunks'**
+  String get transcriptionTaskRetry;
+
+  /// No description provided for @transcriptionTaskDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete record'**
+  String get transcriptionTaskDelete;
+
+  /// No description provided for @transcriptionTaskDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete transcription record?'**
+  String get transcriptionTaskDeleteConfirmTitle;
+
+  /// No description provided for @transcriptionTaskDeleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently removes the transcript, task status, and local source audio.'**
+  String get transcriptionTaskDeleteConfirmBody;
+
+  /// No description provided for @transcriptionTaskDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription record deleted'**
+  String get transcriptionTaskDeleted;
 
   /// No description provided for @providerErrorCredentialMissing.
   ///
@@ -525,17 +668,35 @@ abstract class AppLocalizations {
   /// **'Enter a valid Base URL.'**
   String get providerErrorInvalidBaseUrl;
 
+  /// No description provided for @providerErrorBadRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider rejected the request parameters (400). Check the model and audio format.'**
+  String get providerErrorBadRequest;
+
   /// No description provided for @providerErrorUnauthorized.
   ///
   /// In en, this message translates to:
   /// **'The provider rejected this API key (401).'**
   String get providerErrorUnauthorized;
 
+  /// No description provided for @providerErrorForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider denied this request (403). Check API-key access and account permissions.'**
+  String get providerErrorForbidden;
+
   /// No description provided for @providerErrorRateLimited.
   ///
   /// In en, this message translates to:
   /// **'The provider rate limit was reached (429). Try again later.'**
   String get providerErrorRateLimited;
+
+  /// No description provided for @providerErrorTranscriptionTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription did not finish within 10 minutes. Try a shorter file or retry later.'**
+  String get providerErrorTranscriptionTimedOut;
 
   /// No description provided for @providerErrorUnavailable.
   ///
@@ -549,11 +710,41 @@ abstract class AppLocalizations {
   /// **'The audio file must be smaller than 25 MB.'**
   String get providerErrorAudioFileTooLarge;
 
+  /// No description provided for @providerErrorFilePickerPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'This app does not have permission to open selected files. Rebuild the macOS app and try again.'**
+  String get providerErrorFilePickerPermission;
+
   /// No description provided for @providerErrorInvalidResponse.
   ///
   /// In en, this message translates to:
   /// **'The provider returned an unexpected response.'**
   String get providerErrorInvalidResponse;
+
+  /// No description provided for @providerErrorAudioChunkingUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio chunking is only available in the macOS app.'**
+  String get providerErrorAudioChunkingUnavailable;
+
+  /// No description provided for @providerErrorAudioChunkingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The audio could not be split into upload chunks.'**
+  String get providerErrorAudioChunkingFailed;
+
+  /// No description provided for @providerErrorTaskInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'The app was closed before this transcription finished.'**
+  String get providerErrorTaskInterrupted;
+
+  /// No description provided for @providerErrorSourceAudioMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The imported audio needed for retry is no longer available.'**
+  String get providerErrorSourceAudioMissing;
 
   /// No description provided for @providerErrorRequestFailed.
   ///

@@ -215,6 +215,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get transcriptionUploading => '正在上传并转写…';
 
   @override
+  String get providerChunkDurationLabel => '分片时长（秒）';
+
+  @override
+  String get providerChunkDurationHint => '音频会先按此时长切分再上传。';
+
+  @override
+  String get providerUploadConcurrencyLabel => '并发上传数';
+
+  @override
+  String get providerUploadConcurrencyHint => '同时发送 1–4 个请求，默认 2。';
+
+  @override
+  String get providerTranscriptionLanguageLabel => '转写语言';
+
+  @override
+  String get providerTranscriptionLanguageHint => 'ISO 639-1 代码，例如 zh 或 en。';
+
+  @override
+  String transcriptionTaskBanner(
+    String fileName,
+    int completedChunks,
+    int totalChunks,
+    int elapsedSeconds,
+  ) {
+    return '正在转写 $fileName · 分片 $completedChunks/$totalChunks · 已等待 $elapsedSeconds 秒';
+  }
+
+  @override
   String get transcriptionResultTitle => '转写结果';
 
   @override
@@ -222,6 +250,54 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get transcriptionCopied => '已复制转写文本';
+
+  @override
+  String get transcriptionTaskFailedTitle => '转写任务失败';
+
+  @override
+  String get transcriptionTasksTitle => '转写任务';
+
+  @override
+  String get transcriptionTasksBody => '所有上传任务都会保留在这里，包括失败任务。';
+
+  @override
+  String get transcriptionTaskStatusLabel => '状态';
+
+  @override
+  String get transcriptionTaskChunkProgress => '分片进度';
+
+  @override
+  String get transcriptionTaskQueued => '排队中';
+
+  @override
+  String get transcriptionTaskRunning => '进行中';
+
+  @override
+  String get transcriptionTaskSucceeded => '已完成';
+
+  @override
+  String get transcriptionTaskFailed => '失败';
+
+  @override
+  String get transcriptionTaskStopped => '已停止';
+
+  @override
+  String get transcriptionTaskStop => '停止任务';
+
+  @override
+  String get transcriptionTaskRetry => '重试未完成分片';
+
+  @override
+  String get transcriptionTaskDelete => '删除记录';
+
+  @override
+  String get transcriptionTaskDeleteConfirmTitle => '删除转写记录？';
+
+  @override
+  String get transcriptionTaskDeleteConfirmBody => '将永久删除转写文本、任务状态及本地源音频。';
+
+  @override
+  String get transcriptionTaskDeleted => '已删除转写记录';
 
   @override
   String get providerErrorCredentialMissing => '请先保存 API Key。';
@@ -233,10 +309,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerErrorInvalidBaseUrl => '请输入有效的 Base URL。';
 
   @override
+  String get providerErrorBadRequest => '供应商拒绝了请求参数（400）。请检查模型和音频格式。';
+
+  @override
   String get providerErrorUnauthorized => '供应商拒绝了此 API Key（401）。';
 
   @override
+  String get providerErrorForbidden => '供应商拒绝了此请求（403）。请检查 API Key 访问权限和账户状态。';
+
+  @override
   String get providerErrorRateLimited => '已达到供应商限流（429），请稍后重试。';
+
+  @override
+  String get providerErrorTranscriptionTimedOut =>
+      '转写在 10 分钟内未完成。请尝试更短的音频或稍后重试。';
 
   @override
   String get providerErrorUnavailable => '供应商暂时不可用，请稍后重试。';
@@ -245,7 +331,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerErrorAudioFileTooLarge => '音频文件必须小于 25 MB。';
 
   @override
+  String get providerErrorFilePickerPermission =>
+      '应用没有打开所选文件的权限。请重新构建 macOS 应用后重试。';
+
+  @override
   String get providerErrorInvalidResponse => '供应商返回了无法识别的响应。';
+
+  @override
+  String get providerErrorAudioChunkingUnavailable => '音频分片目前仅在 macOS 应用中可用。';
+
+  @override
+  String get providerErrorAudioChunkingFailed => '无法将音频切分为上传分片。';
+
+  @override
+  String get providerErrorTaskInterrupted => '应用在此转写完成前已关闭。';
+
+  @override
+  String get providerErrorSourceAudioMissing => '重试所需的导入音频已不可用。';
 
   @override
   String get providerErrorRequestFailed => 'API 请求失败，请检查配置和网络。';
@@ -462,6 +564,34 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get transcriptionUploading => '正在上传并转写…';
 
   @override
+  String get providerChunkDurationLabel => '分片时长（秒）';
+
+  @override
+  String get providerChunkDurationHint => '音频会先按此时长切分再上传。';
+
+  @override
+  String get providerUploadConcurrencyLabel => '并发上传数';
+
+  @override
+  String get providerUploadConcurrencyHint => '同时发送 1–4 个请求，默认 2。';
+
+  @override
+  String get providerTranscriptionLanguageLabel => '转写语言';
+
+  @override
+  String get providerTranscriptionLanguageHint => 'ISO 639-1 代码，例如 zh 或 en。';
+
+  @override
+  String transcriptionTaskBanner(
+    String fileName,
+    int completedChunks,
+    int totalChunks,
+    int elapsedSeconds,
+  ) {
+    return '正在转写 $fileName · 分片 $completedChunks/$totalChunks · 已等待 $elapsedSeconds 秒';
+  }
+
+  @override
   String get transcriptionResultTitle => '转写结果';
 
   @override
@@ -469,6 +599,54 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get transcriptionCopied => '已复制转写文本';
+
+  @override
+  String get transcriptionTaskFailedTitle => '转写任务失败';
+
+  @override
+  String get transcriptionTasksTitle => '转写任务';
+
+  @override
+  String get transcriptionTasksBody => '所有上传任务都会保留在这里，包括失败任务。';
+
+  @override
+  String get transcriptionTaskStatusLabel => '状态';
+
+  @override
+  String get transcriptionTaskChunkProgress => '分片进度';
+
+  @override
+  String get transcriptionTaskQueued => '排队中';
+
+  @override
+  String get transcriptionTaskRunning => '进行中';
+
+  @override
+  String get transcriptionTaskSucceeded => '已完成';
+
+  @override
+  String get transcriptionTaskFailed => '失败';
+
+  @override
+  String get transcriptionTaskStopped => '已停止';
+
+  @override
+  String get transcriptionTaskStop => '停止任务';
+
+  @override
+  String get transcriptionTaskRetry => '重试未完成分片';
+
+  @override
+  String get transcriptionTaskDelete => '删除记录';
+
+  @override
+  String get transcriptionTaskDeleteConfirmTitle => '删除转写记录？';
+
+  @override
+  String get transcriptionTaskDeleteConfirmBody => '将永久删除转写文本、任务状态及本地源音频。';
+
+  @override
+  String get transcriptionTaskDeleted => '已删除转写记录';
 
   @override
   String get providerErrorCredentialMissing => '请先保存 API Key。';
@@ -480,10 +658,20 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get providerErrorInvalidBaseUrl => '请输入有效的 Base URL。';
 
   @override
+  String get providerErrorBadRequest => '供应商拒绝了请求参数（400）。请检查模型和音频格式。';
+
+  @override
   String get providerErrorUnauthorized => '供应商拒绝了此 API Key（401）。';
 
   @override
+  String get providerErrorForbidden => '供应商拒绝了此请求（403）。请检查 API Key 访问权限和账户状态。';
+
+  @override
   String get providerErrorRateLimited => '已达到供应商限流（429），请稍后重试。';
+
+  @override
+  String get providerErrorTranscriptionTimedOut =>
+      '转写在 10 分钟内未完成。请尝试更短的音频或稍后重试。';
 
   @override
   String get providerErrorUnavailable => '供应商暂时不可用，请稍后重试。';
@@ -492,7 +680,23 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get providerErrorAudioFileTooLarge => '音频文件必须小于 25 MB。';
 
   @override
+  String get providerErrorFilePickerPermission =>
+      '应用没有打开所选文件的权限。请重新构建 macOS 应用后重试。';
+
+  @override
   String get providerErrorInvalidResponse => '供应商返回了无法识别的响应。';
+
+  @override
+  String get providerErrorAudioChunkingUnavailable => '音频分片目前仅在 macOS 应用中可用。';
+
+  @override
+  String get providerErrorAudioChunkingFailed => '无法将音频切分为上传分片。';
+
+  @override
+  String get providerErrorTaskInterrupted => '应用在此转写完成前已关闭。';
+
+  @override
+  String get providerErrorSourceAudioMissing => '重试所需的导入音频已不可用。';
 
   @override
   String get providerErrorRequestFailed => 'API 请求失败，请检查配置和网络。';
@@ -709,6 +913,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get transcriptionUploading => '正在上傳並轉寫…';
 
   @override
+  String get providerChunkDurationLabel => '分片時長（秒）';
+
+  @override
+  String get providerChunkDurationHint => '音訊會先依此時長切分再上傳。';
+
+  @override
+  String get providerUploadConcurrencyLabel => '並發上傳數';
+
+  @override
+  String get providerUploadConcurrencyHint => '同時傳送 1–4 個請求，預設 2。';
+
+  @override
+  String get providerTranscriptionLanguageLabel => '轉寫語言';
+
+  @override
+  String get providerTranscriptionLanguageHint => 'ISO 639-1 代碼，例如 zh 或 en。';
+
+  @override
+  String transcriptionTaskBanner(
+    String fileName,
+    int completedChunks,
+    int totalChunks,
+    int elapsedSeconds,
+  ) {
+    return '正在轉寫 $fileName · 分片 $completedChunks/$totalChunks · 已等待 $elapsedSeconds 秒';
+  }
+
+  @override
   String get transcriptionResultTitle => '轉寫結果';
 
   @override
@@ -716,6 +948,54 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get transcriptionCopied => '已複製轉寫文字';
+
+  @override
+  String get transcriptionTaskFailedTitle => '轉寫任務失敗';
+
+  @override
+  String get transcriptionTasksTitle => '轉寫任務';
+
+  @override
+  String get transcriptionTasksBody => '所有上傳任務都會保留在這裡，包括失敗任務。';
+
+  @override
+  String get transcriptionTaskStatusLabel => '狀態';
+
+  @override
+  String get transcriptionTaskChunkProgress => '分片進度';
+
+  @override
+  String get transcriptionTaskQueued => '排隊中';
+
+  @override
+  String get transcriptionTaskRunning => '進行中';
+
+  @override
+  String get transcriptionTaskSucceeded => '已完成';
+
+  @override
+  String get transcriptionTaskFailed => '失敗';
+
+  @override
+  String get transcriptionTaskStopped => '已停止';
+
+  @override
+  String get transcriptionTaskStop => '停止任務';
+
+  @override
+  String get transcriptionTaskRetry => '重試未完成分片';
+
+  @override
+  String get transcriptionTaskDelete => '刪除記錄';
+
+  @override
+  String get transcriptionTaskDeleteConfirmTitle => '刪除轉寫記錄？';
+
+  @override
+  String get transcriptionTaskDeleteConfirmBody => '將永久刪除轉寫文字、任務狀態及本機來源音訊。';
+
+  @override
+  String get transcriptionTaskDeleted => '已刪除轉寫記錄';
 
   @override
   String get providerErrorCredentialMissing => '請先儲存 API Key。';
@@ -727,10 +1007,20 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get providerErrorInvalidBaseUrl => '請輸入有效的 Base URL。';
 
   @override
+  String get providerErrorBadRequest => '供應商拒絕了請求參數（400）。請檢查模型和音訊格式。';
+
+  @override
   String get providerErrorUnauthorized => '供應商拒絕了此 API Key（401）。';
 
   @override
+  String get providerErrorForbidden => '供應商拒絕了此請求（403）。請檢查 API Key 存取權限和帳戶狀態。';
+
+  @override
   String get providerErrorRateLimited => '已達到供應商限流（429），請稍後重試。';
+
+  @override
+  String get providerErrorTranscriptionTimedOut =>
+      '轉寫在 10 分鐘內未完成。請嘗試更短的音訊或稍後重試。';
 
   @override
   String get providerErrorUnavailable => '供應商暫時無法使用，請稍後重試。';
@@ -739,7 +1029,23 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get providerErrorAudioFileTooLarge => '音訊檔案必須小於 25 MB。';
 
   @override
+  String get providerErrorFilePickerPermission =>
+      '應用程式沒有開啟所選檔案的權限。請重新建置 macOS 應用程式後再試。';
+
+  @override
   String get providerErrorInvalidResponse => '供應商回傳了無法辨識的回應。';
+
+  @override
+  String get providerErrorAudioChunkingUnavailable => '音訊分片目前僅在 macOS 應用程式中可用。';
+
+  @override
+  String get providerErrorAudioChunkingFailed => '無法將音訊切分為上傳分片。';
+
+  @override
+  String get providerErrorTaskInterrupted => '應用程式在此轉寫完成前已關閉。';
+
+  @override
+  String get providerErrorSourceAudioMissing => '重試所需的匯入音訊已不可用。';
 
   @override
   String get providerErrorRequestFailed => 'API 請求失敗，請檢查設定與網路。';

@@ -225,6 +225,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transcriptionUploading => 'Uploading and transcribing…';
 
   @override
+  String get providerChunkDurationLabel => 'Chunk duration (seconds)';
+
+  @override
+  String get providerChunkDurationHint =>
+      'Each audio chunk is exported before upload.';
+
+  @override
+  String get providerUploadConcurrencyLabel => 'Concurrent uploads';
+
+  @override
+  String get providerUploadConcurrencyHint =>
+      '1–4 requests at a time; the default is 2.';
+
+  @override
+  String get providerTranscriptionLanguageLabel => 'Transcription language';
+
+  @override
+  String get providerTranscriptionLanguageHint =>
+      'ISO 639-1 code, for example zh or en.';
+
+  @override
+  String transcriptionTaskBanner(
+    String fileName,
+    int completedChunks,
+    int totalChunks,
+    int elapsedSeconds,
+  ) {
+    return 'Transcribing $fileName · $completedChunks/$totalChunks chunks · ${elapsedSeconds}s';
+  }
+
+  @override
   String get transcriptionResultTitle => 'Transcription result';
 
   @override
@@ -232,6 +263,57 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transcriptionCopied => 'Transcript copied';
+
+  @override
+  String get transcriptionTaskFailedTitle => 'Transcription task failed';
+
+  @override
+  String get transcriptionTasksTitle => 'Transcription tasks';
+
+  @override
+  String get transcriptionTasksBody =>
+      'Every upload is kept here, including failed tasks.';
+
+  @override
+  String get transcriptionTaskStatusLabel => 'Status';
+
+  @override
+  String get transcriptionTaskChunkProgress => 'Chunk progress';
+
+  @override
+  String get transcriptionTaskQueued => 'Queued';
+
+  @override
+  String get transcriptionTaskRunning => 'Running';
+
+  @override
+  String get transcriptionTaskSucceeded => 'Succeeded';
+
+  @override
+  String get transcriptionTaskFailed => 'Failed';
+
+  @override
+  String get transcriptionTaskStopped => 'Stopped';
+
+  @override
+  String get transcriptionTaskStop => 'Stop task';
+
+  @override
+  String get transcriptionTaskRetry => 'Retry unfinished chunks';
+
+  @override
+  String get transcriptionTaskDelete => 'Delete record';
+
+  @override
+  String get transcriptionTaskDeleteConfirmTitle =>
+      'Delete transcription record?';
+
+  @override
+  String get transcriptionTaskDeleteConfirmBody =>
+      'This permanently removes the transcript, task status, and local source audio.';
+
+  @override
+  String get transcriptionTaskDeleted => 'Transcription record deleted';
 
   @override
   String get providerErrorCredentialMissing =>
@@ -245,12 +327,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providerErrorInvalidBaseUrl => 'Enter a valid Base URL.';
 
   @override
+  String get providerErrorBadRequest =>
+      'The provider rejected the request parameters (400). Check the model and audio format.';
+
+  @override
   String get providerErrorUnauthorized =>
       'The provider rejected this API key (401).';
 
   @override
+  String get providerErrorForbidden =>
+      'The provider denied this request (403). Check API-key access and account permissions.';
+
+  @override
   String get providerErrorRateLimited =>
       'The provider rate limit was reached (429). Try again later.';
+
+  @override
+  String get providerErrorTranscriptionTimedOut =>
+      'Transcription did not finish within 10 minutes. Try a shorter file or retry later.';
 
   @override
   String get providerErrorUnavailable =>
@@ -261,8 +355,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'The audio file must be smaller than 25 MB.';
 
   @override
+  String get providerErrorFilePickerPermission =>
+      'This app does not have permission to open selected files. Rebuild the macOS app and try again.';
+
+  @override
   String get providerErrorInvalidResponse =>
       'The provider returned an unexpected response.';
+
+  @override
+  String get providerErrorAudioChunkingUnavailable =>
+      'Audio chunking is only available in the macOS app.';
+
+  @override
+  String get providerErrorAudioChunkingFailed =>
+      'The audio could not be split into upload chunks.';
+
+  @override
+  String get providerErrorTaskInterrupted =>
+      'The app was closed before this transcription finished.';
+
+  @override
+  String get providerErrorSourceAudioMissing =>
+      'The imported audio needed for retry is no longer available.';
 
   @override
   String get providerErrorRequestFailed =>

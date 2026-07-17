@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../providers/pages/provider_settings_page.dart';
-import '../../providers/pages/transcription_workbench_page.dart';
+import '../../providers/pages/transcription_providers_page.dart';
 import '../../providers/provider_controller.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// Placeholder settings hub (text AI / transcription / privacy to follow).
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key, required this.providerController});
+  const SettingsPage({
+    super.key,
+    required this.providerController,
+    this.onOpenTranscriptionWorkbench,
+  });
 
   final ProviderController providerController;
+  final VoidCallback? onOpenTranscriptionWorkbench;
 
   Future<void> _showAbout(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
@@ -48,18 +53,9 @@ class SettingsPage extends StatelessWidget {
             subtitle: Text(l10n.settingsTranscriptionSubtitle),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => ProviderSettingsPage(
+                builder: (_) => TranscriptionProvidersPage(
                   controller: providerController,
-                  kind: ProviderSettingsKind.transcription,
-                  onOpenTranscriptionWorkbench: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => TranscriptionWorkbenchPage(
-                          controller: providerController,
-                        ),
-                      ),
-                    );
-                  },
+                  onOpenTranscriptionWorkbench: onOpenTranscriptionWorkbench,
                 ),
               ),
             ),

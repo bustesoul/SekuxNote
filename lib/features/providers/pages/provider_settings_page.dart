@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../provider_controller.dart';
 import '../provider_error_message.dart';
+import '../provider_models.dart';
 
 enum ProviderSettingsKind { text, transcription }
 
@@ -11,11 +12,13 @@ class ProviderSettingsPage extends StatefulWidget {
     super.key,
     required this.controller,
     required this.kind,
+    this.transcriptionProviderId,
     this.onOpenTranscriptionWorkbench,
   });
 
   final ProviderController controller;
   final ProviderSettingsKind kind;
+  final String? transcriptionProviderId;
   final VoidCallback? onOpenTranscriptionWorkbench;
 
   @override
@@ -27,11 +30,27 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _baseUrlController;
   late final TextEditingController _modelController;
+  late final TextEditingController _fastFileModelController;
+  late final TextEditingController _realtimeModelController;
+  TextEditingController? _dashScopeApiUrlController;
+  TextEditingController? _chunkDurationController;
+  TextEditingController? _concurrencyController;
   final _apiKeyController = TextEditingController();
   late bool _enabled;
   bool _saving = false;
+  bool _credentialsStored = false;
+  bool _apiKeyVisible = false;
 
   bool get _isText => widget.kind == ProviderSettingsKind.text;
+  TranscriptionProviderConfig get _transcriptionConfig =>
+      widget.controller.transcriptionProviderById(
+        widget.transcriptionProviderId ??
+            widget.controller.transcriptionSettings.defaultProviderId,
+      ) ??
+      widget.controller.transcriptionConfig;
+  bool get _isDashScope =>
+      !_isText &&
+      _transcriptionConfig.type == TranscriptionProviderType.dashScopeFunAsr;
 
   @override
   void initState() {
@@ -41,14 +60,41 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
       _nameController = TextEditingController(text: config.name);
       _baseUrlController = TextEditingController(text: config.baseUrl);
       _modelController = TextEditingController(text: config.model);
+      _fastFileModelController = TextEditingController();
+      _realtimeModelController = TextEditingController();
       _enabled = config.enabled;
     } else {
-      final config = widget.controller.transcriptionConfig;
+      final config = _transcriptionConfig;
       _nameController = TextEditingController(text: config.name);
       _baseUrlController = TextEditingController(text: config.baseUrl);
       _modelController = TextEditingController(text: config.batchModel);
+      _fastFileModelController = TextEditingController(
+        text: config.fastFileModel ?? '',
+      );
+      _realtimeModelController = TextEditingController(
+        text: config.realtimeModel ?? '',
+      );
+      _chunkDurationController = TextEditingController(
+        text: config.chunkDurationSeconds.toString(),
+      );
+      _concurrencyController = TextEditingController(
+        text: config.maxConcurrentUploads.toString(),
+      );
+      _dashScopeApiUrlController = TextEditingController(
+        text: config.dashScopeApiUrl,
+      );
       _enabled = config.enabled;
     }
+    _loadCredentialState();
+  }
+
+  Future<void> _loadCredentialState() async {
+    final stored = _isText
+        ? widget.controller.textCredentialConfigured
+        : await widget.controller.transcriptionCredentialConfiguredFor(
+            _transcriptionConfig.id,
+          );
+    if (mounted) setState(() => _credentialsStored = stored);
   }
 
   @override
@@ -56,6 +102,11 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     _nameController.dispose();
     _baseUrlController.dispose();
     _modelController.dispose();
+    _fastFileModelController.dispose();
+    _realtimeModelController.dispose();
+    _dashScopeApiUrlController?.dispose();
+    _chunkDurationController?.dispose();
+    _concurrencyController?.dispose();
     _apiKeyController.dispose();
     super.dispose();
   }
@@ -63,6 +114,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   Future<bool> _save() async {
     if (!_formKey.currentState!.validate()) return false;
     setState(() => _saving = true);
+    final enteredApiKey = _apiKeyController.text.trim().isNotEmpty;
     try {
       if (_isText) {
         await widget.controller.saveText(
@@ -74,16 +126,33 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
         );
       } else {
         await widget.controller.saveTranscription(
+          providerId: _transcriptionConfig.id,
           name: _nameController.text,
           enabled: _enabled,
-          baseUrl: _baseUrlController.text,
+          baseUrl: _isDashScope ? '' : _baseUrlController.text,
           batchModel: _modelController.text,
+          fastFileModel: _isDashScope ? _fastFileModelController.text : null,
+          realtimeModel: _realtimeModelController.text,
+          language: _transcriptionConfig.language,
+          chunkDurationSeconds: _isDashScope
+              ? 60
+              : int.parse(_chunkDurationController!.text),
+          maxConcurrentUploads: _isDashScope
+              ? 1
+              : int.parse(_concurrencyController!.text),
+          dashScopeApiUrl: _isDashScope
+              ? _dashScopeApiUrlController!.text
+              : null,
           apiKey: _apiKeyController.text,
         );
       }
       _apiKeyController.clear();
       if (mounted) {
-        setState(() {});
+        if (enteredApiKey) {
+          _credentialsStored = true;
+        } else {
+          await _loadCredentialState();
+        }
       }
       return true;
     } finally {
@@ -139,9 +208,6 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final credentialsStored = _isText
-        ? widget.controller.textCredentialConfigured
-        : widget.controller.transcriptionCredentialConfigured;
     final title = _isText
         ? l10n.settingsTextAiTitle
         : l10n.settingsTranscriptionTitle;
@@ -155,6 +221,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
             child: Form(
               key: _formKey,
               child: ListView(
+                key: const Key('provider_settings_scroll'),
                 padding: const EdgeInsets.all(24),
                 children: [
                   TextFormField(
@@ -165,36 +232,178 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                     validator: _notBlank,
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _baseUrlController,
-                    keyboardType: TextInputType.url,
-                    decoration: InputDecoration(
-                      labelText: l10n.providerBaseUrlLabel,
+                  if (!_isDashScope) ...[
+                    TextFormField(
+                      controller: _baseUrlController,
+                      keyboardType: TextInputType.url,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerBaseUrlLabel,
+                      ),
+                      validator: _validUrl,
                     ),
-                    validator: _validUrl,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _modelController,
-                    decoration: InputDecoration(
-                      labelText: l10n.providerModelLabel,
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _modelController,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerModelLabel,
+                      ),
+                      validator: _notBlank,
                     ),
-                    validator: _notBlank,
-                  ),
+                  ] else ...[
+                    DropdownButtonFormField<String>(
+                      key: const Key('dashscope_model'),
+                      initialValue:
+                          _dashScopeModels.contains(
+                            _modelController.text.trim(),
+                          )
+                          ? _modelController.text.trim()
+                          : 'fun-asr',
+                      decoration: InputDecoration(labelText: '文件精转模型（异步任务）'),
+                      items: _dashScopeModels
+                          .map(
+                            (model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _saving
+                          ? null
+                          : (model) => setState(
+                              () => _modelController.text = model ?? 'fun-asr',
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      key: const Key('dashscope_fast_file_model'),
+                      initialValue:
+                          _dashScopeFastFileModels.contains(
+                            _fastFileModelController.text.trim(),
+                          )
+                          ? _fastFileModelController.text.trim()
+                          : _dashScopeFastFileModels.first,
+                      decoration: const InputDecoration(
+                        labelText: '短文件快速模型（同步 SSE）',
+                        helperText: '完整文件上传后渐进返回文字；最长 5 分钟，不支持说话人分离。',
+                      ),
+                      items: _dashScopeFastFileModels
+                          .map(
+                            (model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _saving
+                          ? null
+                          : (model) => setState(
+                              () => _fastFileModelController.text =
+                                  model ?? _dashScopeFastFileModels.first,
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      key: const Key('dashscope_realtime_model'),
+                      initialValue:
+                          _dashScopeRealtimeModels.contains(
+                            _realtimeModelController.text.trim(),
+                          )
+                          ? _realtimeModelController.text.trim()
+                          : _dashScopeRealtimeModels.first,
+                      decoration: const InputDecoration(
+                        labelText: '录音中实时模型（WebSocket）',
+                        helperText: '麦克风边录边传，实时文字作为临时稿保存。',
+                      ),
+                      items: _dashScopeRealtimeModels
+                          .map(
+                            (model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _saving
+                          ? null
+                          : (model) => setState(
+                              () => _realtimeModelController.text =
+                                  model ?? _dashScopeRealtimeModels.first,
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      key: const Key('dashscope_api_url'),
+                      controller: _dashScopeApiUrlController,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(
+                        labelText: 'DashScope API URL',
+                        helperText:
+                            '粘贴控制台的 https://…/api/v1；实时 WebSocket 地址自动推导。',
+                      ),
+                      validator: _validUrl,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '临时上传仅适合个人使用和验证；生产环境应改用 OSS。',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  if (!_isText && !_isDashScope) ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      key: const Key('provider_realtime_model'),
+                      controller: _realtimeModelController,
+                      decoration: const InputDecoration(
+                        labelText: '录音中实时模型（可选）',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      key: const Key('provider_chunk_duration'),
+                      controller: _chunkDurationController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerChunkDurationLabel,
+                        helperText: l10n.providerChunkDurationHint,
+                      ),
+                      validator: _positiveNumber,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      key: const Key('provider_upload_concurrency'),
+                      controller: _concurrencyController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerUploadConcurrencyLabel,
+                        helperText: l10n.providerUploadConcurrencyHint,
+                      ),
+                      validator: _validConcurrency,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _apiKeyController,
-                    obscureText: true,
+                    obscureText: !_apiKeyVisible,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: InputDecoration(
                       labelText: l10n.providerApiKeyLabel,
                       helperText: l10n.providerApiKeyHint,
+                      suffixIcon: IconButton(
+                        key: const Key('provider_api_key_visibility'),
+                        tooltip: _apiKeyVisible ? '隐藏 API Key' : '显示 API Key',
+                        onPressed: () =>
+                            setState(() => _apiKeyVisible = !_apiKeyVisible),
+                        icon: Icon(
+                          _apiKeyVisible
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    credentialsStored
+                    _credentialsStored
                         ? l10n.providerCredentialSet
                         : l10n.providerCredentialMissing,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -269,4 +478,30 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     final uri = Uri.tryParse(value?.trim() ?? '');
     return uri == null || !uri.hasScheme || uri.host.isEmpty ? '' : null;
   }
+
+  String? _positiveNumber(String? value) {
+    final number = int.tryParse(value?.trim() ?? '');
+    return number == null || number <= 0 ? '' : null;
+  }
+
+  String? _validConcurrency(String? value) {
+    final number = int.tryParse(value?.trim() ?? '');
+    return number == null || number < 1 || number > 4 ? '' : null;
+  }
+
+  static const _dashScopeModels = [
+    'fun-asr',
+    'fun-asr-2025-11-07',
+    'fun-asr-2025-08-25',
+    'fun-asr-mtl',
+    'fun-asr-mtl-2025-08-25',
+  ];
+
+  static const _dashScopeFastFileModels = ['fun-asr-flash-2026-06-15'];
+
+  static const _dashScopeRealtimeModels = [
+    'fun-asr-realtime',
+    'fun-asr-realtime-2026-02-28',
+    'fun-asr-realtime-2025-11-07',
+  ];
 }

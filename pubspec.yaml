@@ -12,11 +12,15 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  flutter_secure_storage: ^10.3.1
+  flutter_foreground_task: ^10.0.0
   http: ^1.6.0
+  http_parser: ^4.1.2
   intl: any
   package_info_plus: ^8.3.1
-  shared_preferences: ^2.5.5
+  path_provider: ^2.1.5
+  record: ^6.2.1
+  sqflite_common_ffi: ^2.4.0+2
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -26,3 +30,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+
+# Use the operating system SQLite library. This keeps desktop builds independent
+# from downloading a precompiled SQLite binary during build.
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
+      name_windows: winsqlite3

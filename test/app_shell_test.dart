@@ -75,22 +75,22 @@ void main() {
     expect(find.byKey(const Key('record_entry')), findsOneWidget);
   });
 
-  testWidgets('FR-NAV both record entries open placeholder route', (
+  testWidgets('FR-NAV both record entries open recording route', (
     tester,
   ) async {
-    final l10n = await pumpApp(tester);
+    await pumpApp(tester);
 
     // Library CTA
     await tester.tap(find.byKey(const Key('records_start_recording')));
     await tester.pumpAndSettle();
-    expect(find.text(l10n.recordingPlaceholderHeadline), findsOneWidget);
+    expect(find.byKey(const Key('recording_start')), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
     // Shell chrome entry (FAB or rail)
     await tester.tap(find.byKey(const Key('record_entry')));
     await tester.pumpAndSettle();
-    expect(find.text(l10n.recordingPlaceholderHeadline), findsOneWidget);
+    expect(find.byKey(const Key('recording_start')), findsOneWidget);
   });
 
   testWidgets('FR-SET exposes separate text and transcription settings', (
@@ -108,9 +108,70 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings_transcription_provider')));
     await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('transcription_provider_transcription-openai')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('provider_chunk_duration')), findsOneWidget);
+  });
+
+  testWidgets('FR-SET transcription configuration fields accept editing', (
+    tester,
+  ) async {
+    final l10n = await pumpApp(tester, size: const Size(1200, 800));
+
+    await tester.tap(find.text(l10n.tabSettings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings_transcription_provider')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('transcription_provider_transcription-openai')),
+    );
+    await tester.pumpAndSettle();
+
+    final fields = find.byType(TextFormField);
+    expect(fields, findsNWidgets(7));
+
+    await tester.enterText(fields.at(0), 'Groq Whisper');
+    await tester.enterText(fields.at(1), 'https://api.groq.com/openai/v1');
+    await tester.enterText(fields.at(2), 'whisper-large-v3-turbo');
+    await tester.enterText(fields.at(3), 'gpt-realtime-whisper');
+    await tester.enterText(fields.at(4), '60');
+    await tester.enterText(fields.at(5), '2');
+    await tester.enterText(fields.at(6), 'test-key');
+    await tester.pump();
+
     expect(
-      find.byKey(const Key('provider_open_transcription_workbench')),
-      findsOneWidget,
+      tester.widget<TextFormField>(fields.at(0)).controller!.text,
+      'Groq Whisper',
+    );
+    expect(
+      tester.widget<TextFormField>(fields.at(1)).controller!.text,
+      'https://api.groq.com/openai/v1',
+    );
+    expect(
+      tester.widget<TextFormField>(fields.at(2)).controller!.text,
+      'whisper-large-v3-turbo',
+    );
+    expect(
+      tester.widget<TextFormField>(fields.at(3)).controller!.text,
+      'gpt-realtime-whisper',
+    );
+    expect(tester.widget<TextFormField>(fields.at(4)).controller!.text, '60');
+    expect(tester.widget<TextFormField>(fields.at(5)).controller!.text, '2');
+    expect(
+      tester.widget<TextFormField>(fields.at(6)).controller!.text,
+      'test-key',
+    );
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText).at(6)).obscureText,
+      isTrue,
+    );
+    await tester.tap(find.byKey(const Key('provider_api_key_visibility')));
+    await tester.pump();
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText).at(6)).obscureText,
+      isFalse,
     );
   });
 
@@ -176,6 +237,18 @@ void main() {
 
     session.stopDemoLongTask();
     await tester.pump();
+  });
+
+  test('FR-IMP transcription task is app-session scoped', () {
+    final session = AppSessionController();
+    addTearDown(session.dispose);
+
+    session.startTranscription('meeting.m4a');
+    expect(session.transcriptionRunning, isTrue);
+    expect(session.transcriptionFileName, 'meeting.m4a');
+
+    session.finishTranscription();
+    expect(session.transcriptionRunning, isFalse);
   });
 
   testWidgets('FR-NAV return from recording keeps original tab', (

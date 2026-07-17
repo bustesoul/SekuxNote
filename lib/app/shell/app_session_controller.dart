@@ -13,12 +13,30 @@ class AppSessionController extends ChangeNotifier {
   bool _demoTaskRunning = false;
   int _demoElapsedSeconds = 0;
   Timer? _demoTimer;
+  String? _transcriptionFileName;
+  int _transcriptionElapsedSeconds = 0;
+  int _transcriptionChunksTotal = 0;
+  int _transcriptionChunksCompleted = 0;
+  String _transcriptionPartialText = '';
+  Timer? _transcriptionTimer;
 
   ShellTab get tab => _tab;
 
   bool get demoTaskRunning => _demoTaskRunning;
 
   int get demoElapsedSeconds => _demoElapsedSeconds;
+
+  bool get transcriptionRunning => _transcriptionFileName != null;
+
+  String get transcriptionFileName => _transcriptionFileName ?? '';
+
+  int get transcriptionElapsedSeconds => _transcriptionElapsedSeconds;
+
+  int get transcriptionChunksTotal => _transcriptionChunksTotal;
+
+  int get transcriptionChunksCompleted => _transcriptionChunksCompleted;
+
+  String get transcriptionPartialText => _transcriptionPartialText;
 
   void selectTab(ShellTab tab) {
     if (_tab == tab) return;
@@ -52,9 +70,54 @@ class AppSessionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Product-visible long task. The actual upload is still performed by the
+  /// provider client, while this app-level state survives page/tab changes.
+  void startTranscription(String fileName) {
+    _transcriptionFileName = fileName;
+    _transcriptionElapsedSeconds = 0;
+    _transcriptionChunksTotal = 0;
+    _transcriptionChunksCompleted = 0;
+    _transcriptionPartialText = '';
+    _transcriptionTimer?.cancel();
+    _transcriptionTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _transcriptionElapsedSeconds += 1;
+      notifyListeners();
+    });
+    notifyListeners();
+  }
+
+  void updateTranscriptionProgress({
+    required int total,
+    required int completed,
+  }) {
+    if (!transcriptionRunning) return;
+    _transcriptionChunksTotal = total;
+    _transcriptionChunksCompleted = completed;
+    notifyListeners();
+  }
+
+  void updateTranscriptionPartialText(String text) {
+    if (!transcriptionRunning || text == _transcriptionPartialText) return;
+    _transcriptionPartialText = text;
+    notifyListeners();
+  }
+
+  void finishTranscription() {
+    if (_transcriptionFileName == null && _transcriptionTimer == null) return;
+    _transcriptionTimer?.cancel();
+    _transcriptionTimer = null;
+    _transcriptionFileName = null;
+    _transcriptionElapsedSeconds = 0;
+    _transcriptionChunksTotal = 0;
+    _transcriptionChunksCompleted = 0;
+    _transcriptionPartialText = '';
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _demoTimer?.cancel();
+    _transcriptionTimer?.cancel();
     super.dispose();
   }
 }

@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../features/assistant/pages/assistant_page.dart';
 import '../../features/record_library/pages/record_library_page.dart';
 import '../../features/recording/pages/recording_entry_page.dart';
+import '../../features/recording/recording_models.dart';
+import '../../features/recording/recording_session_controller.dart';
 import '../../features/search/pages/search_page.dart';
 import '../../features/settings/pages/settings_page.dart';
 import '../../features/providers/pages/transcription_workbench_page.dart';
@@ -15,11 +19,17 @@ import 'shell_tab.dart';
 ///
 /// Long-running work is owned by [AppSessionController], not by pushed routes.
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, this.session, required this.providerController});
+  const AppShell({
+    super.key,
+    this.session,
+    required this.providerController,
+    this.recordingController,
+  });
 
   /// Optional injected session (tests). When null, the shell owns one.
   final AppSessionController? session;
   final ProviderController providerController;
+  final RecordingSessionController? recordingController;
 
   /// Width at which the shell switches to the desktop rail layout.
   static const double desktopBreakpoint = 800;
@@ -32,6 +42,8 @@ class AppShell extends StatefulWidget {
 class AppShellState extends State<AppShell> {
   late final AppSessionController _session;
   late final bool _ownsSession;
+  late final RecordingSessionController _recordingController;
+  late final bool _ownsRecordingController;
 
   AppSessionController get session => _session;
 
@@ -42,6 +54,13 @@ class AppShellState extends State<AppShell> {
     super.initState();
     _ownsSession = widget.session == null;
     _session = widget.session ?? AppSessionController();
+    _ownsRecordingController = widget.recordingController == null;
+    _recordingController =
+        widget.recordingController ??
+        RecordingSessionController(
+          providerController: widget.providerController,
+        );
+    unawaited(_recordingController.load());
   }
 
   @override
@@ -49,6 +68,7 @@ class AppShellState extends State<AppShell> {
     if (_ownsSession) {
       _session.dispose();
     }
+    if (_ownsRecordingController) _recordingController.dispose();
     super.dispose();
   }
 
@@ -57,16 +77,20 @@ class AppShellState extends State<AppShell> {
   void openRecordingEntry() {
     // Route is presentation only; future recording sessions must attach to
     // [AppSessionController] / a dedicated service, not this page's State.
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const RecordingEntryPage()));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RecordingEntryPage(controller: _recordingController),
+      ),
+    );
   }
 
   void openTranscriptionWorkbench() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            TranscriptionWorkbenchPage(controller: widget.providerController),
+        builder: (_) => TranscriptionWorkbenchPage(
+          controller: widget.providerController,
+          session: _session,
+        ),
       ),
     );
   }
@@ -78,11 +102,14 @@ class AppShellState extends State<AppShell> {
     final desktop = width >= AppShell.desktopBreakpoint;
 
     return ListenableBuilder(
-      listenable: _session,
+      listenable: Listenable.merge([_session, _recordingController]),
       builder: (context, _) {
+        final activeRecording = _recordingController.active;
         final pages = <Widget>[
           RecordLibraryPage(
             key: const PageStorageKey<String>('tab_records'),
+            providerController: widget.providerController,
+            recordingController: _recordingController,
             onStartRecording: openRecordingEntry,
             onTranscribeAudio: openTranscriptionWorkbench,
           ),
@@ -94,11 +121,54 @@ class AppShellState extends State<AppShell> {
           SettingsPage(
             key: const PageStorageKey<String>('tab_settings'),
             providerController: widget.providerController,
+            onOpenTranscriptionWorkbench: openTranscriptionWorkbench,
           ),
         ];
 
         final body = Column(
           children: [
+            if (activeRecording != null)
+              Material(
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: InkWell(
+                  onTap: openRecordingEntry,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            activeRecording.status == RecordingStatus.paused
+                                ? Icons.pause_circle
+                                : Icons.fiber_manual_record,
+                            size: 18,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${activeRecording.title} · '
+                              '${_recordingController.elapsedMilliseconds ~/ 1000} 秒 · '
+                              '${_recordingStatusText(activeRecording)}',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onErrorContainer,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             if (_session.demoTaskRunning)
               Material(
                 color: Theme.of(context).colorScheme.tertiaryContainer,
@@ -135,6 +205,36 @@ class AppShellState extends State<AppShell> {
                         ],
                       ),
                     ),
+                  ),
+                ),
+              ),
+            if (_session.transcriptionRunning)
+              Material(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          l10n.transcriptionTaskBanner(
+                            _session.transcriptionFileName,
+                            _session.transcriptionChunksCompleted,
+                            _session.transcriptionChunksTotal,
+                            _session.transcriptionElapsedSeconds,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -203,5 +303,15 @@ class AppShellState extends State<AppShell> {
         );
       },
     );
+  }
+
+  String _recordingStatusText(RecordingEntry recording) {
+    if (recording.status == RecordingStatus.paused) return '已暂停';
+    return switch (recording.realtimeStatus) {
+      RealtimeRecordingStatus.connecting => '正在连接实时转写',
+      RealtimeRecordingStatus.streaming => '实时转写中',
+      RealtimeRecordingStatus.interrupted => '录音继续，实时转写已中断',
+      _ => '正在录音',
+    };
   }
 }
