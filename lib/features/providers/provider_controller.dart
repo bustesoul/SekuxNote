@@ -789,6 +789,7 @@ class ProviderController extends ChangeNotifier {
     TranscriptionResult result, {
     required int offsetSeconds,
   }) {
+    if (result.model.startsWith('fun-asr-flash')) return result.text;
     if (result.segments.isEmpty) return result.text;
     return result.segments
         .map(

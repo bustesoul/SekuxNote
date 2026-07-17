@@ -15,10 +15,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabRecords => 'Records';
 
   @override
-  String get tabAssistant => 'AI Assistant';
+  String get tabHome => 'Home';
 
   @override
-  String get tabSearch => 'Search';
+  String get tabAssistant => 'AI Assistant';
 
   @override
   String get tabSettings => 'Settings';
@@ -40,6 +40,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recordsStartButton => 'Start recording';
 
   @override
+  String get homeRecentRecords => 'Recent records';
+
+  @override
+  String get homeRecentRecordsBody =>
+      'The latest three recordings and file transcriptions.';
+
+  @override
+  String get recordTitleSearchHint => 'Search by title';
+
+  @override
+  String get recordTitleSearchClear => 'Clear search';
+
+  @override
+  String get recordTitleSearchEmpty => 'No record titles match your search.';
+
+  @override
   String get assistantTitle => 'AI Assistant';
 
   @override
@@ -48,16 +64,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get assistantBody =>
       'General chat and document tools will be built in this repo. The default home is Records, not chat.';
-
-  @override
-  String get searchTitle => 'Search';
-
-  @override
-  String get searchHeadline => 'Search records and transcripts';
-
-  @override
-  String get searchBody =>
-      'Local search will be wired once you have recordings.';
 
   @override
   String get settingsTitle => 'Settings';

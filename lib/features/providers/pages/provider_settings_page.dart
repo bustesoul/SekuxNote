@@ -35,6 +35,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   late final TextEditingController _fastFileModelController;
   late final TextEditingController _realtimeModelController;
   late final TextEditingController _modelsController;
+  late final TextEditingController _languageController;
   TextEditingController? _dashScopeApiUrlController;
   TextEditingController? _chunkDurationController;
   TextEditingController? _concurrencyController;
@@ -73,6 +74,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
       _fastFileModelController = TextEditingController();
       _realtimeModelController = TextEditingController();
       _modelsController = TextEditingController(text: config.models.join(', '));
+      _languageController = TextEditingController();
       _textProtocol = config.protocol;
       _enabled = config.enabled;
     } else {
@@ -87,6 +89,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
         text: config.realtimeModel ?? '',
       );
       _modelsController = TextEditingController();
+      _languageController = TextEditingController(text: config.language);
       _chunkDurationController = TextEditingController(
         text: config.chunkDurationSeconds.toString(),
       );
@@ -118,6 +121,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     _fastFileModelController.dispose();
     _realtimeModelController.dispose();
     _modelsController.dispose();
+    _languageController.dispose();
     _dashScopeApiUrlController?.dispose();
     _chunkDurationController?.dispose();
     _concurrencyController?.dispose();
@@ -150,7 +154,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
           batchModel: _modelController.text,
           fastFileModel: _isDashScope ? _fastFileModelController.text : null,
           realtimeModel: _realtimeModelController.text,
-          language: _transcriptionConfig.language,
+          language: _languageController.text.trim().toLowerCase(),
           chunkDurationSeconds: _isDashScope
               ? 60
               : int.parse(_chunkDurationController!.text),
@@ -430,6 +434,24 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                         helperText: l10n.providerUploadConcurrencyHint,
                       ),
                       validator: _validConcurrency,
+                    ),
+                  ],
+                  if (!_isText) ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      key: const Key('provider_transcription_language'),
+                      controller: _languageController,
+                      textCapitalization: TextCapitalization.none,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerTranscriptionLanguageLabel,
+                        helperText: _isDashScope
+                            ? '异步文件精转使用该语言提示；Flash 快转自动识别语言。'
+                            : l10n.providerTranscriptionLanguageHint,
+                      ),
+                      validator: (value) =>
+                          RegExp(r'^[a-z]{2}$').hasMatch(value?.trim() ?? '')
+                          ? null
+                          : l10n.providerTranscriptionLanguageHint,
                     ),
                   ],
                   const SizedBox(height: 16),

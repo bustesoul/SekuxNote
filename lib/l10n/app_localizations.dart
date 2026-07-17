@@ -112,17 +112,17 @@ abstract class AppLocalizations {
   /// **'Records'**
   String get tabRecords;
 
+  /// No description provided for @tabHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get tabHome;
+
   /// No description provided for @tabAssistant.
   ///
   /// In en, this message translates to:
   /// **'AI Assistant'**
   String get tabAssistant;
-
-  /// No description provided for @tabSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get tabSearch;
 
   /// No description provided for @tabSettings.
   ///
@@ -160,6 +160,36 @@ abstract class AppLocalizations {
   /// **'Start recording'**
   String get recordsStartButton;
 
+  /// No description provided for @homeRecentRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent records'**
+  String get homeRecentRecords;
+
+  /// No description provided for @homeRecentRecordsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The latest three recordings and file transcriptions.'**
+  String get homeRecentRecordsBody;
+
+  /// No description provided for @recordTitleSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by title'**
+  String get recordTitleSearchHint;
+
+  /// No description provided for @recordTitleSearchClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get recordTitleSearchClear;
+
+  /// No description provided for @recordTitleSearchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No record titles match your search.'**
+  String get recordTitleSearchEmpty;
+
   /// No description provided for @assistantTitle.
   ///
   /// In en, this message translates to:
@@ -177,24 +207,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'General chat and document tools will be built in this repo. The default home is Records, not chat.'**
   String get assistantBody;
-
-  /// No description provided for @searchTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get searchTitle;
-
-  /// No description provided for @searchHeadline.
-  ///
-  /// In en, this message translates to:
-  /// **'Search records and transcripts'**
-  String get searchHeadline;
-
-  /// No description provided for @searchBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Local search will be wired once you have recordings.'**
-  String get searchBody;
 
   /// No description provided for @settingsTitle.
   ///

@@ -210,11 +210,11 @@ class OpenAiApiClient {
     if (apiBase == null || !apiBase.hasScheme || apiBase.host.isEmpty) {
       throw const ProviderRequestException('dashScopeApiUrlMissing');
     }
-    final temporaryUrl = await _uploadDashScopeTemporaryFile(
-      apiKey: apiKey,
-      file: file,
-      model: config.batchModel,
-    );
+    final encodedAudio = base64Encode(file.bytes);
+    final dataUri = 'data:${_audioContentType(file.name)};base64,$encodedAudio';
+    if (utf8.encode(dataUri).length > 10 * 1024 * 1024) {
+      throw const ProviderRequestException('audioFileTooLarge');
+    }
     final base = apiBaseUrl.replaceFirst(RegExp(r'/+$'), '');
     final request =
         http.Request(
@@ -235,7 +235,7 @@ class OpenAiApiClient {
                   'content': [
                     {
                       'type': 'input_audio',
-                      'input_audio': {'data': temporaryUrl},
+                      'input_audio': {'data': dataUri},
                     },
                   ],
                 },
@@ -266,7 +266,9 @@ class OpenAiApiClient {
 
     var text = '';
     var usage = const <String, Object?>{};
-    final segments = <int, TranscriptionSegment>{};
+    var committedText = '';
+    var lastEndSeconds = 0.0;
+    final segments = <TranscriptionSegment>[];
     final lines = response.stream
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -284,8 +286,28 @@ class OpenAiApiClient {
       }
       final sentence = _map(output['sentence']);
       if (sentence['sentence_end'] == true) {
-        final id = sentence['sentence_id'] as int? ?? segments.length + 1;
-        segments[id] = _dashScopeFlashSegment(sentence);
+        final rawSegment = _dashScopeFlashSegment(sentence);
+        final snapshot = nextText.isNotEmpty ? nextText : rawSegment.text;
+        final segmentText = snapshot.startsWith(committedText)
+            ? snapshot.substring(committedText.length).trim()
+            : rawSegment.text.trim();
+        if (segmentText.isNotEmpty) {
+          final startSeconds = rawSegment.startSeconds < lastEndSeconds
+              ? lastEndSeconds
+              : rawSegment.startSeconds;
+          segments.add(
+            TranscriptionSegment(
+              startSeconds: startSeconds,
+              endSeconds: rawSegment.endSeconds,
+              text: segmentText,
+              words: rawSegment.words
+                  .where((word) => word.startSeconds >= startSeconds)
+                  .toList(growable: false),
+            ),
+          );
+          lastEndSeconds = rawSegment.endSeconds;
+        }
+        committedText = snapshot;
       }
       final nextUsage = _map(event['usage']);
       if (nextUsage.isNotEmpty) usage = nextUsage;
@@ -299,7 +321,7 @@ class OpenAiApiClient {
       model: config.batchModel,
       text: text,
       usage: usage,
-      segments: segments.values.toList(growable: false),
+      segments: segments,
     );
   }
 
@@ -658,6 +680,23 @@ class OpenAiApiClient {
   /// Keeps local diagnostics actionable without persisting response bodies,
   /// which may contain user content or short-lived provider credentials.
   String _responseDiagnostic(String body) {
+    for (final line in const LineSplitter().convert(body)) {
+      if (!line.startsWith('data:')) continue;
+      final data = line.substring(5).trim();
+      if (data.isEmpty) continue;
+      final diagnostic = _jsonDiagnostic(data);
+      if (diagnostic.isNotEmpty) return diagnostic;
+    }
+    final jsonDiagnostic = _jsonDiagnostic(body);
+    if (jsonDiagnostic.isNotEmpty) return jsonDiagnostic;
+    return _compactDiagnostic(
+      code: _xmlElement(body, 'Code'),
+      message: _xmlElement(body, 'Message'),
+      requestId: _xmlElement(body, 'RequestId'),
+    );
+  }
+
+  String _jsonDiagnostic(String body) {
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map) {
@@ -673,11 +712,7 @@ class OpenAiApiClient {
     } on FormatException {
       // OSS sends XML errors; handled below.
     }
-    return _compactDiagnostic(
-      code: _xmlElement(body, 'Code'),
-      message: _xmlElement(body, 'Message'),
-      requestId: _xmlElement(body, 'RequestId'),
-    );
+    return '';
   }
 
   String _compactDiagnostic({

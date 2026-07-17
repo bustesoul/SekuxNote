@@ -280,65 +280,47 @@ void main() {
 
   test('FR-IMP Fun-ASR-Flash streams cumulative text over SSE', () async {
     final requests = <http.BaseRequest>[];
-    var call = 0;
     final client = OpenAiApiClient(
       client: MockClient((request) async {
         requests.add(request);
-        call += 1;
-        return switch (call) {
-          1 => http.Response(
-            jsonEncode({
-              'data': {
-                'upload_host': 'https://upload.example.test',
-                'upload_dir': 'dashscope-instant/test',
-                'oss_access_key_id': 'temporary-id',
-                'policy': 'policy',
-                'signature': 'signature',
-              },
-            }),
-            200,
-          ),
-          2 => http.Response('', 200),
-          3 => http.Response.bytes(
-            utf8.encode(
-              [
-                'id:1',
-                'event:result',
-                ':HTTP_STATUS/200',
-                'data:${jsonEncode({
-                  'output': {
-                    'sentence': {'sentence_id': 1, 'sentence_end': false, 'begin_time': 100, 'text': '你好'},
-                    'text': '你好',
+        return http.Response.bytes(
+          utf8.encode(
+            [
+              'id:1',
+              'event:result',
+              ':HTTP_STATUS/200',
+              'data:${jsonEncode({
+                'output': {
+                  'sentence': {'sentence_id': 1, 'sentence_end': true, 'begin_time': 100, 'end_time': 300, 'text': '你好'},
+                  'text': '你好',
+                },
+              })}',
+              '',
+              'id:2',
+              'event:result',
+              ':HTTP_STATUS/200',
+              'data:${jsonEncode({
+                'output': {
+                  'sentence': {
+                    'sentence_id': 1,
+                    'sentence_end': true,
+                    'begin_time': 0,
+                    'end_time': 800,
+                    'text': '你好世界。',
+                    'words': [
+                      {'begin_time': 300, 'end_time': 800, 'text': '世界', 'punctuation': '。'},
+                    ],
                   },
-                })}',
-                '',
-                'id:2',
-                'event:result',
-                ':HTTP_STATUS/200',
-                'data:${jsonEncode({
-                  'output': {
-                    'sentence': {
-                      'sentence_id': 1,
-                      'sentence_end': true,
-                      'begin_time': 100,
-                      'end_time': 800,
-                      'text': '你好。',
-                      'words': [
-                        {'begin_time': 100, 'end_time': 800, 'text': '你好', 'punctuation': '。'},
-                      ],
-                    },
-                    'text': '你好。',
-                  },
-                  'usage': {'duration': 1},
-                })}',
-                '',
-              ].join('\n'),
-            ),
-            200,
-            headers: const {'content-type': 'text/event-stream'},
+                  'text': '你好世界。',
+                },
+                'usage': {'duration': 1},
+              })}',
+              '',
+            ].join('\n'),
           ),
-          _ => throw StateError('unexpected request'),
-        };
+          200,
+          headers: const {'content-type': 'text/event-stream'},
+        );
       }),
     );
     addTearDown(client.close);
@@ -359,8 +341,7 @@ void main() {
       onPartialText: partials.add,
     );
 
-    expect(requests, hasLength(3));
-    expect(requests.first.url.queryParameters['model'], defaults.fastFileModel);
+    expect(requests, hasLength(1));
     expect(
       requests.last.url.path,
       '/api/v1/services/aigc/multimodal-generation/generation',
@@ -371,10 +352,16 @@ void main() {
     );
     expect(body['model'], defaults.fastFileModel);
     expect(body['parameters']['format'], 'wav');
-    expect(partials, ['你好', '你好。']);
-    expect(result.text, '你好。');
-    expect(result.segments.single.endSeconds, 0.8);
-    expect(result.segments.single.words.single.punctuation, '。');
+    expect(
+      body['input']['messages'][0]['content'][0]['input_audio']['data'],
+      startsWith('data:audio/wav;base64,'),
+    );
+    expect(partials, ['你好', '你好世界。']);
+    expect(result.text, '你好世界。');
+    expect(result.segments.map((segment) => segment.text), ['你好', '世界。']);
+    expect(result.segments.last.startSeconds, 0.3);
+    expect(result.segments.last.endSeconds, 0.8);
+    expect(result.segments.last.words.single.punctuation, '。');
     expect(result.usage['duration'], 1);
   });
 

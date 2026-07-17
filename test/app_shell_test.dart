@@ -26,12 +26,12 @@ void main() {
     return lookupAppLocalizations(locale);
   }
 
-  testWidgets('FR-NAV-001 cold start lands on records tab', (tester) async {
+  testWidgets('FR-NAV-001 cold start lands on home tab', (tester) async {
     await pumpApp(tester);
 
     expect(find.byType(AppShell), findsOneWidget);
     final state = tester.state<AppShellState>(find.byType(AppShell));
-    expect(state.currentTab, ShellTab.records);
+    expect(state.currentTab, ShellTab.home);
     expect(find.byKey(const Key('records_start_recording')), findsOneWidget);
   });
 
@@ -45,11 +45,11 @@ void main() {
       ShellTab.assistant,
     );
 
-    await tester.tap(find.text(l10n.tabSearch));
+    await tester.tap(find.text(l10n.tabRecords));
     await tester.pumpAndSettle();
     expect(
       tester.state<AppShellState>(find.byType(AppShell)).currentTab,
-      ShellTab.search,
+      ShellTab.records,
     );
 
     await tester.tap(find.text(l10n.tabSettings));
@@ -59,11 +59,11 @@ void main() {
       ShellTab.settings,
     );
 
-    await tester.tap(find.text(l10n.tabRecords));
+    await tester.tap(find.text(l10n.tabHome));
     await tester.pumpAndSettle();
     expect(
       tester.state<AppShellState>(find.byType(AppShell)).currentTab,
-      ShellTab.records,
+      ShellTab.home,
     );
   });
 
@@ -135,7 +135,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final fields = find.byType(TextFormField);
-    expect(fields, findsNWidgets(7));
+    expect(fields, findsNWidgets(8));
 
     await tester.enterText(fields.at(0), 'Groq Whisper');
     await tester.enterText(fields.at(1), 'https://api.groq.com/openai/v1');
@@ -143,7 +143,8 @@ void main() {
     await tester.enterText(fields.at(3), 'gpt-realtime-whisper');
     await tester.enterText(fields.at(4), '60');
     await tester.enterText(fields.at(5), '2');
-    await tester.enterText(fields.at(6), 'test-key');
+    await tester.enterText(fields.at(6), 'en');
+    await tester.enterText(fields.at(7), 'test-key');
     await tester.pump();
 
     expect(
@@ -164,18 +165,19 @@ void main() {
     );
     expect(tester.widget<TextFormField>(fields.at(4)).controller!.text, '60');
     expect(tester.widget<TextFormField>(fields.at(5)).controller!.text, '2');
+    expect(tester.widget<TextFormField>(fields.at(6)).controller!.text, 'en');
     expect(
-      tester.widget<TextFormField>(fields.at(6)).controller!.text,
+      tester.widget<TextFormField>(fields.at(7)).controller!.text,
       'test-key',
     );
     expect(
-      tester.widget<EditableText>(find.byType(EditableText).at(6)).obscureText,
+      tester.widget<EditableText>(find.byType(EditableText).at(7)).obscureText,
       isTrue,
     );
     await tester.tap(find.byKey(const Key('provider_api_key_visibility')));
     await tester.pump();
     expect(
-      tester.widget<EditableText>(find.byType(EditableText).at(6)).obscureText,
+      tester.widget<EditableText>(find.byType(EditableText).at(7)).obscureText,
       isFalse,
     );
   });
@@ -202,9 +204,10 @@ void main() {
     await tester.pump();
     expect(find.text('2'), findsOneWidget);
 
-    await tester.tap(find.text(l10n.tabSearch));
-    await tester.pumpAndSettle();
     await tester.tap(find.text(l10n.tabRecords));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('record_title_search')), findsOneWidget);
+    await tester.tap(find.text(l10n.tabHome));
     await tester.pumpAndSettle();
 
     expect(find.text('2'), findsOneWidget);
@@ -240,11 +243,11 @@ void main() {
   ) async {
     final l10n = await pumpApp(tester);
 
-    await tester.tap(find.text(l10n.tabSearch));
+    await tester.tap(find.text(l10n.tabRecords));
     await tester.pumpAndSettle();
     expect(
       tester.state<AppShellState>(find.byType(AppShell)).currentTab,
-      ShellTab.search,
+      ShellTab.records,
     );
 
     // Shell record entry remains available on non-records tabs.
@@ -257,7 +260,7 @@ void main() {
 
     expect(
       tester.state<AppShellState>(find.byType(AppShell)).currentTab,
-      ShellTab.search,
+      ShellTab.records,
     );
   });
 

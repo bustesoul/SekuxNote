@@ -14,13 +14,15 @@ import '../../providers/provider_models.dart';
 import '../../recording/recording_models.dart';
 import '../../recording/recording_session_controller.dart';
 
-/// Placeholder for the record library (Gate A default home).
+enum RecordLibraryMode { home, library }
+
 class RecordLibraryPage extends StatefulWidget {
   const RecordLibraryPage({
     super.key,
     required this.providerController,
     required this.assistantController,
     required this.recordingController,
+    required this.mode,
     this.onStartRecording,
     this.onTranscribeAudio,
   });
@@ -28,6 +30,7 @@ class RecordLibraryPage extends StatefulWidget {
   final ProviderController providerController;
   final AssistantController assistantController;
   final RecordingSessionController recordingController;
+  final RecordLibraryMode mode;
   final VoidCallback? onStartRecording;
   final VoidCallback? onTranscribeAudio;
 
@@ -38,6 +41,16 @@ class RecordLibraryPage extends StatefulWidget {
 class _RecordLibraryPageState extends State<RecordLibraryPage> {
   /// Proves IndexedStack keep-alive for tab-local UI state (FR-NAV-004).
   int _counter = 0;
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  bool get _isHome => widget.mode == RecordLibraryMode.home;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +58,7 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.recordsTitle)),
+      appBar: AppBar(title: Text(_isHome ? l10n.tabHome : l10n.tabRecords)),
       body: ListenableBuilder(
         listenable: Listenable.merge([
           widget.providerController,
@@ -56,118 +69,183 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
           builder: (context, snapshot) {
             final tasks = snapshot.data ?? const <TranscriptionTask>[];
             final recordings = widget.recordingController.recordings;
-            final isEmpty = tasks.isEmpty && recordings.isEmpty;
+            final records = <_RecordListItem>[
+              ...tasks.map(_RecordListItem.task),
+              ...recordings.map(_RecordListItem.recording),
+            ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            final normalizedQuery = _query.trim().toLowerCase();
+            final matching = normalizedQuery.isEmpty
+                ? records
+                : records
+                      .where(
+                        (record) => record.title.toLowerCase().contains(
+                          normalizedQuery,
+                        ),
+                      )
+                      .toList(growable: false);
+            final visible = _isHome
+                ? matching.take(3).toList(growable: false)
+                : matching;
+            final isEmpty = records.isEmpty;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 640),
                 child: ListView(
                   padding: const EdgeInsets.all(24),
                   children: [
-                    Icon(
-                      Icons.library_music_outlined,
-                      size: 56,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      isEmpty
-                          ? l10n.recordsEmptyTitle
-                          : l10n.transcriptionTasksTitle,
-                      style: theme.textTheme.titleLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      isEmpty
-                          ? l10n.recordsEmptyBody
-                          : l10n.transcriptionTasksBody,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                    if (_isHome) ...[
+                      Icon(
+                        Icons.library_music_outlined,
+                        size: 56,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        isEmpty
+                            ? l10n.recordsEmptyTitle
+                            : l10n.homeRecentRecords,
+                        style: theme.textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isEmpty
+                            ? l10n.recordsEmptyBody
+                            : l10n.homeRecentRecordsBody,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        key: const Key('records_start_recording'),
+                        onPressed: widget.onStartRecording,
+                        icon: const Icon(Icons.fiber_manual_record, size: 18),
+                        label: Text(l10n.recordsStartButton),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        key: const Key('records_transcribe_audio'),
+                        onPressed: widget.onTranscribeAudio,
+                        icon: const Icon(Icons.audio_file_outlined),
+                        label: Text(l10n.recordsTranscribeAudio),
+                      ),
+                    ] else ...[
+                      TextField(
+                        key: const Key('record_title_search'),
+                        controller: _searchController,
+                        onChanged: (value) => setState(() => _query = value),
+                        decoration: InputDecoration(
+                          hintText: l10n.recordTitleSearchHint,
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: l10n.recordTitleSearchClear,
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _query = '');
+                                  },
+                                  icon: const Icon(Icons.clear),
+                                ),
+                        ),
+                      ),
+                    ],
+                    if (visible.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      for (final record in visible)
+                        _recordCard(context, l10n, record),
+                    ] else if (isEmpty && !_isHome) ...[
+                      const SizedBox(height: 48),
+                      Icon(
+                        Icons.library_music_outlined,
+                        size: 44,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      key: const Key('records_start_recording'),
-                      onPressed: widget.onStartRecording,
-                      icon: const Icon(Icons.fiber_manual_record, size: 18),
-                      label: Text(l10n.recordsStartButton),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      key: const Key('records_transcribe_audio'),
-                      onPressed: widget.onTranscribeAudio,
-                      icon: const Icon(Icons.audio_file_outlined),
-                      label: Text(l10n.recordsTranscribeAudio),
-                    ),
-                    if (tasks.isNotEmpty) ...[
-                      const SizedBox(height: 32),
-                      for (final task in tasks)
-                        Card(
-                          child: ListTile(
-                            key: Key('transcription_task_${task.id}'),
-                            leading: Icon(_taskIcon(task.status)),
-                            title: Text(task.fileName),
-                            subtitle: Text(
-                              '${_taskStatusLabel(l10n, task.status)} · '
-                              '${task.chunksCompleted}/${task.chunksTotal == 0 ? '?' : task.chunksTotal}',
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => _showTaskDetails(context, task),
-                          ),
-                        ),
+                      const SizedBox(height: 12),
+                      Text(l10n.recordsEmptyTitle, textAlign: TextAlign.center),
+                    ] else if (!isEmpty && !_isHome) ...[
+                      const SizedBox(height: 48),
+                      Icon(
+                        Icons.search_off,
+                        size: 44,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.recordTitleSearchEmpty,
+                        textAlign: TextAlign.center,
+                      ),
                     ],
-                    if (recordings.isNotEmpty) ...[
+                    if (_isHome) ...[
                       const SizedBox(height: 32),
-                      Text('录音记录', style: theme.textTheme.titleMedium),
+                      Text(
+                        l10n.keepAliveCounterLabel,
+                        style: theme.textTheme.labelMedium,
+                      ),
                       const SizedBox(height: 8),
-                      for (final recording in recordings)
-                        Card(
-                          child: ListTile(
-                            key: Key('recording_${recording.id}'),
-                            leading: Icon(
-                              recording.status == RecordingStatus.ready
-                                  ? Icons.mic_none
-                                  : recording.status ==
-                                        RecordingStatus.recovered
-                                  ? Icons.restore
-                                  : Icons.error_outline,
-                            ),
-                            title: Text(recording.title),
-                            subtitle: Text(
-                              '${_recordingStatus(recording.status)} · '
-                              '${_timeLabel(recording.durationMilliseconds / 1000)}'
-                              '${recording.realtimeTranscript.isEmpty ? '' : ' · 有实时临时稿'}',
-                            ),
-                            onTap: recording.realtimeTranscript.isEmpty
-                                ? null
-                                : () =>
-                                      _showRecordingDetails(context, recording),
-                          ),
-                        ),
+                      Text(
+                        '$_counter',
+                        key: const Key('records_keep_alive_counter'),
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      TextButton(
+                        key: const Key('records_keep_alive_increment'),
+                        onPressed: () => setState(() => _counter += 1),
+                        child: Text(l10n.keepAliveIncrement),
+                      ),
                     ],
-                    const SizedBox(height: 32),
-                    Text(
-                      l10n.keepAliveCounterLabel,
-                      style: theme.textTheme.labelMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '$_counter',
-                      key: const Key('records_keep_alive_counter'),
-                      style: theme.textTheme.headlineMedium,
-                    ),
-                    TextButton(
-                      key: const Key('records_keep_alive_increment'),
-                      onPressed: () => setState(() => _counter += 1),
-                      child: Text(l10n.keepAliveIncrement),
-                    ),
                   ],
                 ),
               ),
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _recordCard(
+    BuildContext context,
+    AppLocalizations l10n,
+    _RecordListItem item,
+  ) {
+    final task = item.transcriptionTask;
+    if (task != null) {
+      return Card(
+        child: ListTile(
+          key: Key('transcription_task_${task.id}'),
+          leading: Icon(_taskIcon(task.status)),
+          title: Text(task.fileName),
+          subtitle: Text(
+            '${_taskStatusLabel(l10n, task.status)} · '
+            '${task.chunksCompleted}/${task.chunksTotal == 0 ? '?' : task.chunksTotal}',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _showTaskDetails(context, task),
+        ),
+      );
+    }
+    final recording = item.recordingEntry!;
+    return Card(
+      child: ListTile(
+        key: Key('recording_${recording.id}'),
+        leading: Icon(
+          recording.status == RecordingStatus.ready
+              ? Icons.mic_none
+              : recording.status == RecordingStatus.recovered
+              ? Icons.restore
+              : Icons.error_outline,
+        ),
+        title: Text(recording.title),
+        subtitle: Text(
+          '${_recordingStatus(recording.status)} · '
+          '${_timeLabel(recording.durationMilliseconds / 1000)}'
+          '${recording.realtimeTranscript.isEmpty ? '' : ' · 有实时临时稿'}',
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _showRecordingDetails(context, recording),
       ),
     );
   }
@@ -439,4 +517,22 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
     return '${(value ~/ 60).toString().padLeft(2, '0')}:'
         '${(value % 60).toString().padLeft(2, '0')}';
   }
+}
+
+class _RecordListItem {
+  const _RecordListItem._({this.transcriptionTask, this.recordingEntry});
+
+  factory _RecordListItem.task(TranscriptionTask task) =>
+      _RecordListItem._(transcriptionTask: task);
+
+  factory _RecordListItem.recording(RecordingEntry recording) =>
+      _RecordListItem._(recordingEntry: recording);
+
+  final TranscriptionTask? transcriptionTask;
+  final RecordingEntry? recordingEntry;
+
+  String get title => transcriptionTask?.fileName ?? recordingEntry!.title;
+
+  DateTime get createdAt =>
+      transcriptionTask?.createdAt ?? recordingEntry!.createdAt;
 }

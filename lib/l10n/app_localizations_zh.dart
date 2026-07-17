@@ -15,10 +15,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tabRecords => '记录';
 
   @override
-  String get tabAssistant => 'AI 助手';
+  String get tabHome => '首页';
 
   @override
-  String get tabSearch => '搜索';
+  String get tabAssistant => 'AI 助手';
 
   @override
   String get tabSettings => '设置';
@@ -39,6 +39,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recordsStartButton => '开始录音';
 
   @override
+  String get homeRecentRecords => '最近记录';
+
+  @override
+  String get homeRecentRecordsBody => '展示最近 3 条录音或文件转写记录。';
+
+  @override
+  String get recordTitleSearchHint => '按标题搜索记录';
+
+  @override
+  String get recordTitleSearchClear => '清除搜索';
+
+  @override
+  String get recordTitleSearchEmpty => '没有匹配标题的记录。';
+
+  @override
   String get assistantTitle => 'AI 助手';
 
   @override
@@ -46,15 +61,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get assistantBody => '通用对话与文档处理将在本仓实现。默认首页是「记录」，不是聊天。';
-
-  @override
-  String get searchTitle => '搜索';
-
-  @override
-  String get searchHeadline => '搜索记录与转写';
-
-  @override
-  String get searchBody => '本地搜索将在有记录数据后接入。';
 
   @override
   String get settingsTitle => '设置';
@@ -364,10 +370,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get tabRecords => '记录';
 
   @override
-  String get tabAssistant => 'AI 助手';
+  String get tabHome => '首页';
 
   @override
-  String get tabSearch => '搜索';
+  String get tabAssistant => 'AI 助手';
 
   @override
   String get tabSettings => '设置';
@@ -388,6 +394,21 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get recordsStartButton => '开始录音';
 
   @override
+  String get homeRecentRecords => '最近记录';
+
+  @override
+  String get homeRecentRecordsBody => '展示最近 3 条录音或文件转写记录。';
+
+  @override
+  String get recordTitleSearchHint => '按标题搜索记录';
+
+  @override
+  String get recordTitleSearchClear => '清除搜索';
+
+  @override
+  String get recordTitleSearchEmpty => '没有匹配标题的记录。';
+
+  @override
   String get assistantTitle => 'AI 助手';
 
   @override
@@ -395,15 +416,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get assistantBody => '通用对话与文档处理将在本仓实现。默认首页是「记录」，不是聊天。';
-
-  @override
-  String get searchTitle => '搜索';
-
-  @override
-  String get searchHeadline => '搜索记录与转写';
-
-  @override
-  String get searchBody => '本地搜索将在有记录数据后接入。';
 
   @override
   String get settingsTitle => '设置';
@@ -713,10 +725,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get tabRecords => '記錄';
 
   @override
-  String get tabAssistant => 'AI 助手';
+  String get tabHome => '首頁';
 
   @override
-  String get tabSearch => '搜尋';
+  String get tabAssistant => 'AI 助手';
 
   @override
   String get tabSettings => '設定';
@@ -737,6 +749,21 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get recordsStartButton => '開始錄音';
 
   @override
+  String get homeRecentRecords => '最近記錄';
+
+  @override
+  String get homeRecentRecordsBody => '顯示最近 3 筆錄音或檔案轉寫記錄。';
+
+  @override
+  String get recordTitleSearchHint => '依標題搜尋記錄';
+
+  @override
+  String get recordTitleSearchClear => '清除搜尋';
+
+  @override
+  String get recordTitleSearchEmpty => '沒有符合標題的記錄。';
+
+  @override
   String get assistantTitle => 'AI 助手';
 
   @override
@@ -744,15 +771,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get assistantBody => '通用對話與文件處理將在本倉實作。預設首頁是「記錄」，不是聊天。';
-
-  @override
-  String get searchTitle => '搜尋';
-
-  @override
-  String get searchHeadline => '搜尋記錄與轉寫';
-
-  @override
-  String get searchBody => '本地搜尋將在有記錄資料後接入。';
 
   @override
   String get settingsTitle => '設定';

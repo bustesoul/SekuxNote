@@ -268,7 +268,11 @@ class _TranscriptionWorkbenchPageState
                     textCapitalization: TextCapitalization.none,
                     decoration: InputDecoration(
                       labelText: l10n.providerTranscriptionLanguageLabel,
-                      helperText: l10n.providerTranscriptionLanguageHint,
+                      helperText:
+                          _isDashScope &&
+                              _fileMode == TranscriptionFileMode.fast
+                          ? 'Flash 快转自动识别语言；该值仅用于异步文件精转。'
+                          : l10n.providerTranscriptionLanguageHint,
                     ),
                   ),
                   if (_isDashScope) ...[

@@ -8,7 +8,6 @@ import '../../features/record_library/pages/record_library_page.dart';
 import '../../features/recording/pages/recording_entry_page.dart';
 import '../../features/recording/recording_models.dart';
 import '../../features/recording/recording_session_controller.dart';
-import '../../features/search/pages/search_page.dart';
 import '../../features/settings/pages/settings_page.dart';
 import '../../features/providers/pages/transcription_workbench_page.dart';
 import '../../features/providers/provider_controller.dart';
@@ -110,10 +109,11 @@ class AppShellState extends State<AppShell> {
         final activeRecording = _recordingController.active;
         final pages = <Widget>[
           RecordLibraryPage(
-            key: const PageStorageKey<String>('tab_records'),
+            key: const PageStorageKey<String>('tab_home'),
             providerController: widget.providerController,
             assistantController: widget.assistantController,
             recordingController: _recordingController,
+            mode: RecordLibraryMode.home,
             onStartRecording: openRecordingEntry,
             onTranscribeAudio: openTranscriptionWorkbench,
           ),
@@ -123,7 +123,13 @@ class AppShellState extends State<AppShell> {
             providerController: widget.providerController,
             recordingController: _recordingController,
           ),
-          const SearchPage(key: PageStorageKey<String>('tab_search')),
+          RecordLibraryPage(
+            key: const PageStorageKey<String>('tab_records'),
+            providerController: widget.providerController,
+            assistantController: widget.assistantController,
+            recordingController: _recordingController,
+            mode: RecordLibraryMode.library,
+          ),
           SettingsPage(
             key: const PageStorageKey<String>('tab_settings'),
             providerController: widget.providerController,
