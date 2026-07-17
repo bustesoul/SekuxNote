@@ -102,8 +102,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings_text_provider')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('text_provider_add')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('text_provider_text-openai')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('provider_test_text')), findsOneWidget);
 
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('settings_transcription_provider')));
@@ -205,38 +210,17 @@ void main() {
     expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('FR-NAV-002 demo long task survives tab switches', (
-    tester,
-  ) async {
-    final session = AppSessionController();
-    addTearDown(() {
-      session.stopDemoLongTask();
-      session.dispose();
-    });
-
-    final l10n = await pumpApp(tester, session: session);
+  testWidgets('FR-AI assistant state survives tab switches', (tester) async {
+    final l10n = await pumpApp(tester);
 
     await tester.tap(find.text(l10n.tabAssistant));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('demo_task_start')));
-    await tester.pump();
-
-    expect(session.demoTaskRunning, isTrue);
+    await tester.enterText(find.byKey(const Key('assistant_input')), '尚未发送的草稿');
 
     await tester.tap(find.text(l10n.tabRecords));
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
-
-    expect(session.demoTaskRunning, isTrue);
-    expect(session.demoElapsedSeconds, greaterThanOrEqualTo(1));
-    expect(find.textContaining('Background demo task'), findsOneWidget);
-
     await tester.tap(find.text(l10n.tabAssistant));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('demo_task_stop')), findsOneWidget);
-
-    session.stopDemoLongTask();
-    await tester.pump();
+    expect(find.text('尚未发送的草稿'), findsOneWidget);
   });
 
   test('FR-IMP transcription task is app-session scoped', () {

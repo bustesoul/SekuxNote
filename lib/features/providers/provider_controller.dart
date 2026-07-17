@@ -56,18 +56,20 @@ class ProviderController extends ChangeNotifier {
   final TaskAudioStore _taskAudioStore;
   final Map<String, _TaskRun> _taskRuns = {};
 
-  TextProviderConfig _textConfig = TextProviderConfig.defaults();
+  TextProviderSettings _textSettings = TextProviderSettings.defaults();
   TranscriptionProviderSettings _transcriptionSettings =
       TranscriptionProviderSettings.defaults();
-  bool _textCredentialConfigured = false;
+  final Set<String> _configuredTextCredentialRefs = {};
   final Set<String> _configuredTranscriptionCredentialRefs = {};
 
-  TextProviderConfig get textConfig => _textConfig;
+  TextProviderSettings get textSettings => _textSettings;
+  TextProviderConfig get textConfig => _textSettings.defaultProvider;
   TranscriptionProviderSettings get transcriptionSettings =>
       _transcriptionSettings;
   TranscriptionProviderConfig get transcriptionConfig =>
       _transcriptionSettings.defaultProvider;
-  bool get textCredentialConfigured => _textCredentialConfigured;
+  bool get textCredentialConfigured =>
+      _configuredTextCredentialRefs.contains(textConfig.credentialRef);
   bool get transcriptionCredentialConfigured =>
       _configuredTranscriptionCredentialRefs.contains(
         transcriptionConfig.credentialRef,
@@ -86,12 +88,37 @@ class ProviderController extends ChangeNotifier {
     return null;
   }
 
-  Future<void> load() async {
-    _textConfig = await _settingsStore.readText();
-    _transcriptionSettings = await _settingsStore.readTranscriptionSettings();
-    _textCredentialConfigured =
-        (await _credentialStore.read(_textConfig.credentialRef))?.isNotEmpty ??
+  TextProviderConfig? textProviderById(String id) {
+    for (final provider in _textSettings.providers) {
+      if (provider.id == id) return provider;
+    }
+    return null;
+  }
+
+  Future<bool> textCredentialConfiguredFor(String providerId) async {
+    final provider = textProviderById(providerId);
+    if (provider == null) return false;
+    return (await _credentialStore.read(provider.credentialRef))?.isNotEmpty ??
         false;
+  }
+
+  Future<void> load() async {
+    _textSettings = await _settingsStore.readTextSettings();
+    _transcriptionSettings = await _settingsStore.readTranscriptionSettings();
+    _configuredTextCredentialRefs
+      ..clear()
+      ..addAll(
+        (await Future.wait(
+          _textSettings.providers.map((provider) async {
+            final configured =
+                (await _credentialStore.read(
+                  provider.credentialRef,
+                ))?.isNotEmpty ??
+                false;
+            return configured ? provider.credentialRef : null;
+          }),
+        )).whereType<String>(),
+      );
     _configuredTranscriptionCredentialRefs
       ..clear()
       ..addAll(
@@ -132,23 +159,81 @@ class ProviderController extends ChangeNotifier {
   }
 
   Future<void> saveText({
+    String? providerId,
     required String name,
     required bool enabled,
     required String baseUrl,
     required String model,
+    TextProviderProtocol? protocol,
+    List<String>? models,
     String? apiKey,
   }) async {
-    _textConfig = _textConfig.copyWith(
+    final id = providerId ?? _textSettings.defaultProviderId;
+    final existing = textProviderById(id);
+    if (existing == null) throw ArgumentError.value(id, 'providerId');
+    final normalizedModels = <String>{
+      ...?models
+          ?.map((value) => value.trim())
+          .where((value) => value.isNotEmpty),
+      model.trim(),
+    }.toList(growable: false);
+    final updated = existing.copyWith(
       name: name.trim(),
       enabled: enabled,
       baseUrl: baseUrl.trim(),
       model: model.trim(),
+      protocol: protocol,
+      models: normalizedModels,
     );
     if (apiKey != null && apiKey.trim().isNotEmpty) {
-      await _credentialStore.write(_textConfig.credentialRef, apiKey.trim());
-      _textCredentialConfigured = true;
+      await _credentialStore.write(updated.credentialRef, apiKey.trim());
+      _configuredTextCredentialRefs.add(updated.credentialRef);
     }
-    await _settingsStore.writeText(_textConfig);
+    _textSettings = _textSettings.copyWith(
+      providers: _textSettings.providers
+          .map((provider) => provider.id == id ? updated : provider)
+          .toList(growable: false),
+    );
+    await _settingsStore.writeTextSettings(_textSettings);
+    notifyListeners();
+  }
+
+  Future<TextProviderConfig> addTextProvider() async {
+    final id = 'text-${DateTime.now().microsecondsSinceEpoch}';
+    final provider = TextProviderConfig.openAiCompatible(id: id);
+    _textSettings = _textSettings.copyWith(
+      providers: [..._textSettings.providers, provider],
+    );
+    await _settingsStore.writeTextSettings(_textSettings);
+    notifyListeners();
+    return provider;
+  }
+
+  Future<void> setDefaultTextProvider(String providerId) async {
+    if (textProviderById(providerId) == null) {
+      throw ArgumentError.value(providerId, 'providerId');
+    }
+    _textSettings = _textSettings.copyWith(defaultProviderId: providerId);
+    await _settingsStore.writeTextSettings(_textSettings);
+    notifyListeners();
+  }
+
+  Future<void> deleteTextProvider(String providerId) async {
+    if (_textSettings.providers.length == 1) return;
+    final target = textProviderById(providerId);
+    if (target == null) return;
+    final providers = _textSettings.providers
+        .where((provider) => provider.id != providerId)
+        .toList(growable: false);
+    _textSettings = TextProviderSettings(
+      providers: providers,
+      defaultProviderId: _textSettings.defaultProviderId == providerId
+          ? providers.first.id
+          : _textSettings.defaultProviderId,
+    );
+    await _credentialStore.delete(target.credentialRef);
+    _configuredTextCredentialRefs.remove(target.credentialRef);
+    await _settingsStore.writeTextSettings(_textSettings);
     notifyListeners();
   }
 
@@ -240,10 +325,33 @@ class ProviderController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<ApiOperationResult> testText() async {
-    _ensureEnabled(_textConfig.enabled);
-    final key = await _requiredKey(_textConfig.credentialRef);
-    return _apiClient.testText(config: _textConfig, apiKey: key);
+  Future<ApiOperationResult> testText({String? providerId}) async {
+    final config = textProviderById(
+      providerId ?? _textSettings.defaultProviderId,
+    );
+    if (config == null) throw const ProviderRequestException('providerMissing');
+    _ensureEnabled(config.enabled);
+    final key = await _requiredKey(config.credentialRef);
+    return _apiClient.testText(config: config, apiKey: key);
+  }
+
+  Stream<TextGenerationChunk> streamText({
+    required List<TextChatMessage> messages,
+    String? providerId,
+    String? model,
+  }) async* {
+    final config = textProviderById(
+      providerId ?? _textSettings.defaultProviderId,
+    );
+    if (config == null) throw const ProviderRequestException('providerMissing');
+    _ensureEnabled(config.enabled);
+    final key = await _requiredKey(config.credentialRef);
+    yield* _apiClient.streamText(
+      config: config,
+      apiKey: key,
+      model: model?.trim().isNotEmpty == true ? model!.trim() : config.model,
+      messages: messages,
+    );
   }
 
   Future<TranscriptionResult> transcribe(

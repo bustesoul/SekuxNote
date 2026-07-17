@@ -14,6 +14,8 @@ enum TranscriptionCapability {
 
 enum TranscriptionProviderType { openAiCompatible, dashScopeFunAsr }
 
+enum TextProviderProtocol { responses, chatCompletions }
+
 enum TranscriptionFileMode { precision, fast }
 
 enum TranscriptionTaskStatus { queued, running, succeeded, failed, stopped }
@@ -160,6 +162,8 @@ class TextProviderConfig {
     required this.credentialRef,
     required this.baseUrl,
     required this.model,
+    this.protocol = TextProviderProtocol.responses,
+    this.models = const [],
   });
 
   factory TextProviderConfig.defaults() => const TextProviderConfig(
@@ -169,7 +173,21 @@ class TextProviderConfig {
     credentialRef: 'sekuxnote.text.openai',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-5.6-luna',
+    protocol: TextProviderProtocol.responses,
+    models: ['gpt-5.6-luna'],
   );
+
+  factory TextProviderConfig.openAiCompatible({required String id}) =>
+      TextProviderConfig(
+        id: id,
+        name: 'OpenAI 兼容供应商',
+        enabled: true,
+        credentialRef: 'sekuxnote.text.$id',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4.1-mini',
+        protocol: TextProviderProtocol.chatCompletions,
+        models: const ['gpt-4.1-mini'],
+      );
 
   factory TextProviderConfig.fromJson(Map<String, Object?> json) {
     final defaults = TextProviderConfig.defaults();
@@ -180,6 +198,15 @@ class TextProviderConfig {
       credentialRef: json['credentialRef'] as String? ?? defaults.credentialRef,
       baseUrl: json['baseUrl'] as String? ?? defaults.baseUrl,
       model: json['model'] as String? ?? defaults.model,
+      protocol: TextProviderProtocol.values.firstWhere(
+        (value) => value.name == json['protocol'],
+        orElse: () => TextProviderProtocol.responses,
+      ),
+      models:
+          (json['models'] as List?)
+              ?.map((value) => value.toString())
+              .toList() ??
+          [json['model'] as String? ?? defaults.model],
     );
   }
 
@@ -189,12 +216,16 @@ class TextProviderConfig {
   final String credentialRef;
   final String baseUrl;
   final String model;
+  final TextProviderProtocol protocol;
+  final List<String> models;
 
   TextProviderConfig copyWith({
     String? name,
     bool? enabled,
     String? baseUrl,
     String? model,
+    TextProviderProtocol? protocol,
+    List<String>? models,
   }) {
     return TextProviderConfig(
       id: id,
@@ -203,6 +234,8 @@ class TextProviderConfig {
       credentialRef: credentialRef,
       baseUrl: baseUrl ?? this.baseUrl,
       model: model ?? this.model,
+      protocol: protocol ?? this.protocol,
+      models: models ?? this.models,
     );
   }
 
@@ -213,7 +246,88 @@ class TextProviderConfig {
     'credentialRef': credentialRef,
     'baseUrl': baseUrl,
     'model': model,
+    'protocol': protocol.name,
+    'models': models,
   };
+}
+
+class TextProviderSettings {
+  const TextProviderSettings({
+    required this.providers,
+    required this.defaultProviderId,
+  });
+
+  factory TextProviderSettings.defaults() {
+    final provider = TextProviderConfig.defaults();
+    return TextProviderSettings(
+      providers: [provider],
+      defaultProviderId: provider.id,
+    );
+  }
+
+  factory TextProviderSettings.fromJson(Map<String, Object?> json) {
+    final providers =
+        (json['providers'] as List?)
+            ?.whereType<Map>()
+            .map(
+              (value) =>
+                  TextProviderConfig.fromJson(Map<String, Object?>.from(value)),
+            )
+            .toList(growable: false) ??
+        const <TextProviderConfig>[];
+    if (providers.isEmpty) return TextProviderSettings.defaults();
+    final requested = json['defaultProviderId'] as String?;
+    return TextProviderSettings(
+      providers: providers,
+      defaultProviderId: providers.any((value) => value.id == requested)
+          ? requested!
+          : providers.first.id,
+    );
+  }
+
+  final List<TextProviderConfig> providers;
+  final String defaultProviderId;
+
+  TextProviderConfig get defaultProvider => providers.firstWhere(
+    (provider) => provider.id == defaultProviderId,
+    orElse: () => providers.first,
+  );
+
+  TextProviderSettings copyWith({
+    List<TextProviderConfig>? providers,
+    String? defaultProviderId,
+  }) => TextProviderSettings(
+    providers: providers ?? this.providers,
+    defaultProviderId: defaultProviderId ?? this.defaultProviderId,
+  );
+
+  Map<String, Object?> toJson() => {
+    'providers': providers.map((value) => value.toJson()).toList(),
+    'defaultProviderId': defaultProviderId,
+  };
+}
+
+class TextChatMessage {
+  const TextChatMessage({required this.role, required this.content});
+
+  final String role;
+  final String content;
+
+  Map<String, Object?> toJson() => {'role': role, 'content': content};
+}
+
+class TextGenerationChunk {
+  const TextGenerationChunk({
+    required this.text,
+    this.model,
+    this.usage = const {},
+    this.done = false,
+  });
+
+  final String text;
+  final String? model;
+  final Map<String, Object?> usage;
+  final bool done;
 }
 
 class TranscriptionProviderConfig {

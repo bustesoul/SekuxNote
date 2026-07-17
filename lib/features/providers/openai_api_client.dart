@@ -30,6 +30,33 @@ class OpenAiApiClient {
     required TextProviderConfig config,
     required String apiKey,
   }) async {
+    if (config.protocol == TextProviderProtocol.chatCompletions) {
+      final response = await _sendJson(
+        _endpoint(config.baseUrl, 'chat/completions'),
+        apiKey,
+        {
+          'model': config.model,
+          'messages': [
+            {
+              'role': 'user',
+              'content': 'Reply exactly: SekuxNote text API test passed.',
+            },
+          ],
+          'stream': false,
+          'max_tokens': 32,
+        },
+      );
+      final body = _decodeJson(response.body);
+      final choices = body['choices'];
+      final output = choices is List && choices.isNotEmpty
+          ? _map(_map(choices.first)['message'])['content'] as String? ?? ''
+          : '';
+      return ApiOperationResult(
+        model: body['model'] as String? ?? config.model,
+        output: output,
+        usage: _usage(body),
+      );
+    }
     final response =
         await _sendJson(_endpoint(config.baseUrl, 'responses'), apiKey, {
           'model': config.model,
@@ -42,6 +69,98 @@ class OpenAiApiClient {
       model: body['model'] as String? ?? config.model,
       output: _responseText(body),
       usage: _usage(body),
+    );
+  }
+
+  Stream<TextGenerationChunk> streamText({
+    required TextProviderConfig config,
+    required String apiKey,
+    required String model,
+    required List<TextChatMessage> messages,
+  }) async* {
+    final isResponses = config.protocol == TextProviderProtocol.responses;
+    final request =
+        http.Request(
+            'POST',
+            _endpoint(
+              config.baseUrl,
+              isResponses ? 'responses' : 'chat/completions',
+            ),
+          )
+          ..headers.addAll({
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+            'Accept': 'text/event-stream',
+          })
+          ..body = jsonEncode(
+            isResponses
+                ? {
+                    'model': model,
+                    'input': messages.map((value) => value.toJson()).toList(),
+                    'stream': true,
+                    'store': false,
+                  }
+                : {
+                    'model': model,
+                    'messages': messages
+                        .map((value) => value.toJson())
+                        .toList(),
+                    'stream': true,
+                  },
+          );
+    final response = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 45));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final body = await response.stream.bytesToString();
+      await ProviderDebugLog.record(
+        'text_generation.failure',
+        details: {
+          'host': request.url.host,
+          'statusCode': response.statusCode,
+          'error': _responseDiagnostic(body),
+        },
+      );
+      _ensureStatusCode(response.statusCode);
+    }
+    String? responseModel;
+    var usage = const <String, Object?>{};
+    await for (final line
+        in response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())) {
+      if (!line.startsWith('data:')) continue;
+      final data = line.substring(5).trim();
+      if (data.isEmpty || data == '[DONE]') continue;
+      final event = _decodeJson(data);
+      responseModel = event['model'] as String? ?? responseModel;
+      final nextUsage = _usage(event);
+      if (nextUsage.isNotEmpty) usage = nextUsage;
+      String delta = '';
+      if (isResponses) {
+        if (event['type'] == 'response.output_text.delta') {
+          delta = event['delta'] as String? ?? '';
+        }
+        final completed = _map(event['response']);
+        responseModel = completed['model'] as String? ?? responseModel;
+        final completedUsage = _usage(completed);
+        if (completedUsage.isNotEmpty) usage = completedUsage;
+      } else {
+        final choices = event['choices'];
+        if (choices is List && choices.isNotEmpty) {
+          final choice = _map(choices.first);
+          delta = _map(choice['delta'])['content'] as String? ?? '';
+        }
+      }
+      if (delta.isNotEmpty) {
+        yield TextGenerationChunk(text: delta, model: responseModel);
+      }
+    }
+    yield TextGenerationChunk(
+      text: '',
+      model: responseModel ?? model,
+      usage: usage,
+      done: true,
     );
   }
 

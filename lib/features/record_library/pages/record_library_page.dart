@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../providers/openai_api_client.dart';
+import '../../assistant/assistant_controller.dart';
+import '../../assistant/assistant_models.dart';
+import '../../assistant/pages/record_summary_sheet.dart';
+import '../../assistant/record_ai_source_adapter.dart';
 import '../../providers/provider_controller.dart';
 import '../../providers/provider_error_message.dart';
 import '../../providers/provider_models.dart';
@@ -15,12 +19,14 @@ class RecordLibraryPage extends StatefulWidget {
   const RecordLibraryPage({
     super.key,
     required this.providerController,
+    required this.assistantController,
     required this.recordingController,
     this.onStartRecording,
     this.onTranscribeAudio,
   });
 
   final ProviderController providerController;
+  final AssistantController assistantController;
   final RecordingSessionController recordingController;
   final VoidCallback? onStartRecording;
   final VoidCallback? onTranscribeAudio;
@@ -229,6 +235,15 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
                       ),
                     ),
                 ],
+                if (recordAiSourceFromTask(task) case final source?) ...[
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    key: Key('task_summary_${task.id}'),
+                    onPressed: () => _showSummary(pageContext, source),
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('AI 总结'),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 if (task.status == TranscriptionTaskStatus.running)
                   OutlinedButton.icon(
@@ -345,11 +360,52 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
             const Text('实时文字（临时稿）'),
             const SizedBox(height: 8),
             SelectionArea(child: Text(recording.realtimeTranscript)),
+            if (recordAiSourceFromRecording(recording) case final source?) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                key: Key('recording_summary_${recording.id}'),
+                onPressed: () => _showSummary(pageContext, source),
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('AI 总结'),
+              ),
+            ],
           ],
         ),
       ),
     ),
   );
+
+  Future<void> _showSummary(BuildContext context, RecordAiSource source) async {
+    if (source.revisionLabel.contains('临时稿')) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('使用实时临时稿生成总结？'),
+          content: const Text('这条记录还没有会后最终稿。总结会明确绑定当前实时转写版本。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('继续'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => RecordSummarySheet(
+        source: source,
+        controller: widget.assistantController,
+        providerController: widget.providerController,
+      ),
+    );
+  }
 
   String _recordingStatus(RecordingStatus status) => switch (status) {
     RecordingStatus.recording => '正在录音',

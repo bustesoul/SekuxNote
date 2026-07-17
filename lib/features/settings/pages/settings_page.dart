@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../providers/pages/provider_settings_page.dart';
+import '../../providers/pages/text_providers_page.dart';
 import '../../providers/pages/transcription_providers_page.dart';
 import '../../providers/provider_controller.dart';
 import '../../../l10n/app_localizations.dart';
@@ -67,10 +67,8 @@ class SettingsPage extends StatelessWidget {
             subtitle: Text(l10n.settingsTextAiSubtitle),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => ProviderSettingsPage(
-                  controller: providerController,
-                  kind: ProviderSettingsKind.text,
-                ),
+                builder: (_) =>
+                    TextProvidersPage(controller: providerController),
               ),
             ),
           ),

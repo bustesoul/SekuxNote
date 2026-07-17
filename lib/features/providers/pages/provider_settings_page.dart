@@ -12,12 +12,14 @@ class ProviderSettingsPage extends StatefulWidget {
     super.key,
     required this.controller,
     required this.kind,
+    this.textProviderId,
     this.transcriptionProviderId,
     this.onOpenTranscriptionWorkbench,
   });
 
   final ProviderController controller;
   final ProviderSettingsKind kind;
+  final String? textProviderId;
   final String? transcriptionProviderId;
   final VoidCallback? onOpenTranscriptionWorkbench;
 
@@ -32,6 +34,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   late final TextEditingController _modelController;
   late final TextEditingController _fastFileModelController;
   late final TextEditingController _realtimeModelController;
+  late final TextEditingController _modelsController;
   TextEditingController? _dashScopeApiUrlController;
   TextEditingController? _chunkDurationController;
   TextEditingController? _concurrencyController;
@@ -40,8 +43,15 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   bool _saving = false;
   bool _credentialsStored = false;
   bool _apiKeyVisible = false;
+  TextProviderProtocol _textProtocol = TextProviderProtocol.responses;
 
   bool get _isText => widget.kind == ProviderSettingsKind.text;
+  TextProviderConfig get _textConfig =>
+      widget.controller.textProviderById(
+        widget.textProviderId ??
+            widget.controller.textSettings.defaultProviderId,
+      ) ??
+      widget.controller.textConfig;
   TranscriptionProviderConfig get _transcriptionConfig =>
       widget.controller.transcriptionProviderById(
         widget.transcriptionProviderId ??
@@ -56,12 +66,14 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   void initState() {
     super.initState();
     if (_isText) {
-      final config = widget.controller.textConfig;
+      final config = _textConfig;
       _nameController = TextEditingController(text: config.name);
       _baseUrlController = TextEditingController(text: config.baseUrl);
       _modelController = TextEditingController(text: config.model);
       _fastFileModelController = TextEditingController();
       _realtimeModelController = TextEditingController();
+      _modelsController = TextEditingController(text: config.models.join(', '));
+      _textProtocol = config.protocol;
       _enabled = config.enabled;
     } else {
       final config = _transcriptionConfig;
@@ -74,6 +86,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
       _realtimeModelController = TextEditingController(
         text: config.realtimeModel ?? '',
       );
+      _modelsController = TextEditingController();
       _chunkDurationController = TextEditingController(
         text: config.chunkDurationSeconds.toString(),
       );
@@ -90,7 +103,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
 
   Future<void> _loadCredentialState() async {
     final stored = _isText
-        ? widget.controller.textCredentialConfigured
+        ? await widget.controller.textCredentialConfiguredFor(_textConfig.id)
         : await widget.controller.transcriptionCredentialConfiguredFor(
             _transcriptionConfig.id,
           );
@@ -104,6 +117,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     _modelController.dispose();
     _fastFileModelController.dispose();
     _realtimeModelController.dispose();
+    _modelsController.dispose();
     _dashScopeApiUrlController?.dispose();
     _chunkDurationController?.dispose();
     _concurrencyController?.dispose();
@@ -118,10 +132,13 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     try {
       if (_isText) {
         await widget.controller.saveText(
+          providerId: _textConfig.id,
           name: _nameController.text,
           enabled: _enabled,
           baseUrl: _baseUrlController.text,
           model: _modelController.text,
+          protocol: _textProtocol,
+          models: _modelsController.text.split(','),
           apiKey: _apiKeyController.text,
         );
       } else {
@@ -164,7 +181,9 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     if (!await _save()) return;
     setState(() => _saving = true);
     try {
-      final result = await widget.controller.testText();
+      final result = await widget.controller.testText(
+        providerId: _textConfig.id,
+      );
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -249,6 +268,40 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                       ),
                       validator: _notBlank,
                     ),
+                    if (_isText) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<TextProviderProtocol>(
+                        key: const Key('text_provider_protocol'),
+                        initialValue: _textProtocol,
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'API 协议'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: TextProviderProtocol.responses,
+                            child: Text('OpenAI Responses API'),
+                          ),
+                          DropdownMenuItem(
+                            value: TextProviderProtocol.chatCompletions,
+                            child: Text('OpenAI Chat Completions 兼容'),
+                          ),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(
+                                () => _textProtocol =
+                                    value ?? TextProviderProtocol.responses,
+                              ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        key: const Key('text_provider_models'),
+                        controller: _modelsController,
+                        decoration: const InputDecoration(
+                          labelText: '可用模型',
+                          helperText: '使用英文逗号分隔；上面的模型为默认模型。',
+                        ),
+                      ),
+                    ],
                   ] else ...[
                     DropdownButtonFormField<String>(
                       key: const Key('dashscope_model'),

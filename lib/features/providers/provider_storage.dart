@@ -6,9 +6,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'provider_models.dart';
 
 abstract interface class ProviderSettingsStore {
-  Future<TextProviderConfig> readText();
+  Future<TextProviderSettings> readTextSettings();
   Future<TranscriptionProviderSettings> readTranscriptionSettings();
-  Future<void> writeText(TextProviderConfig config);
+  Future<void> writeTextSettings(TextProviderSettings settings);
   Future<void> writeTranscriptionSettings(
     TranscriptionProviderSettings settings,
   );
@@ -103,12 +103,21 @@ class SqliteProviderStore
   }
 
   @override
-  Future<TextProviderConfig> readText() async {
+  Future<TextProviderSettings> readTextSettings() async {
     final value = await _readConfig(_textKey);
-    return value == null
-        ? TextProviderConfig.defaults()
-        : TextProviderConfig.fromJson(value);
+    if (value == null) return TextProviderSettings.defaults();
+    if (value.containsKey('providers')) {
+      return TextProviderSettings.fromJson(value);
+    }
+    final legacy = TextProviderConfig.fromJson(value);
+    return TextProviderSettings(
+      providers: [legacy],
+      defaultProviderId: legacy.id,
+    );
   }
+
+  Future<TextProviderConfig> readText() async =>
+      (await readTextSettings()).defaultProvider;
 
   @override
   Future<TranscriptionProviderSettings> readTranscriptionSettings() async {
@@ -130,9 +139,13 @@ class SqliteProviderStore
       (await readTranscriptionSettings()).defaultProvider;
 
   @override
-  Future<void> writeText(TextProviderConfig config) async {
-    await _writeConfig(_textKey, config.toJson());
+  Future<void> writeTextSettings(TextProviderSettings settings) async {
+    await _writeConfig(_textKey, settings.toJson());
   }
+
+  Future<void> writeText(TextProviderConfig config) => writeTextSettings(
+    TextProviderSettings(providers: [config], defaultProviderId: config.id),
+  );
 
   @override
   Future<void> writeTranscriptionSettings(
@@ -417,20 +430,29 @@ class SqliteProviderStore
 }
 
 class MemoryProviderSettingsStore implements ProviderSettingsStore {
-  TextProviderConfig _text = TextProviderConfig.defaults();
+  TextProviderSettings _text = TextProviderSettings.defaults();
   TranscriptionProviderSettings _transcription =
       TranscriptionProviderSettings.defaults();
 
   @override
-  Future<TextProviderConfig> readText() async => _text;
+  Future<TextProviderSettings> readTextSettings() async => _text;
+
+  Future<TextProviderConfig> readText() async => _text.defaultProvider;
 
   @override
   Future<TranscriptionProviderSettings> readTranscriptionSettings() async =>
       _transcription;
 
   @override
+  Future<void> writeTextSettings(TextProviderSettings settings) async {
+    _text = settings;
+  }
+
   Future<void> writeText(TextProviderConfig config) async {
-    _text = config;
+    _text = TextProviderSettings(
+      providers: [config],
+      defaultProviderId: config.id,
+    );
   }
 
   @override

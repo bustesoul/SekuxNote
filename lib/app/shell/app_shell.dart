@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../features/assistant/pages/assistant_page.dart';
+import '../../features/assistant/assistant_controller.dart';
 import '../../features/record_library/pages/record_library_page.dart';
 import '../../features/recording/pages/recording_entry_page.dart';
 import '../../features/recording/recording_models.dart';
@@ -23,12 +24,14 @@ class AppShell extends StatefulWidget {
     super.key,
     this.session,
     required this.providerController,
+    required this.assistantController,
     this.recordingController,
   });
 
   /// Optional injected session (tests). When null, the shell owns one.
   final AppSessionController? session;
   final ProviderController providerController;
+  final AssistantController assistantController;
   final RecordingSessionController? recordingController;
 
   /// Width at which the shell switches to the desktop rail layout.
@@ -109,13 +112,16 @@ class AppShellState extends State<AppShell> {
           RecordLibraryPage(
             key: const PageStorageKey<String>('tab_records'),
             providerController: widget.providerController,
+            assistantController: widget.assistantController,
             recordingController: _recordingController,
             onStartRecording: openRecordingEntry,
             onTranscribeAudio: openTranscriptionWorkbench,
           ),
           AssistantPage(
             key: const PageStorageKey<String>('tab_assistant'),
-            session: _session,
+            controller: widget.assistantController,
+            providerController: widget.providerController,
+            recordingController: _recordingController,
           ),
           const SearchPage(key: PageStorageKey<String>('tab_search')),
           SettingsPage(
