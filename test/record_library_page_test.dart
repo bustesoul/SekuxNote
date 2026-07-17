@@ -32,6 +32,7 @@ void main() {
           updatedAt: now.add(Duration(minutes: index)),
           chunksTotal: 1,
           chunksCompleted: 1,
+          transcript: List.filled(40, '这是一段很长的转写内容。').join('\n'),
         ),
       );
     }
@@ -78,6 +79,15 @@ void main() {
     expect(find.text('meeting-3.m4a'), findsOneWidget);
     expect(find.text('meeting-1.m4a'), findsOneWidget);
     expect(find.text('meeting-0.m4a'), findsNothing);
+
+    await tester.tap(find.text('meeting-3.m4a'));
+    await tester.pumpAndSettle();
+    final back = find.byKey(const Key('task_detail_back'));
+    expect(back, findsOneWidget);
+    expect(tester.getTopLeft(back).dy, lessThan(80));
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+    expect(back, findsNothing);
 
     await tester.pumpWidget(app(RecordLibraryMode.library));
     await tester.pumpAndSettle();

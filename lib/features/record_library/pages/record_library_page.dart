@@ -258,159 +258,141 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
     return showModalBottomSheet<void>(
       context: pageContext,
       isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: DraggableScrollableSheet(
-            expand: false,
-            builder: (contentContext, scrollController) => ListView(
-              controller: scrollController,
-              children: [
-                Text(
-                  task.fileName,
-                  style: Theme.of(contentContext).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                Text('${task.providerName} · ${task.model}'),
-                const SizedBox(height: 8),
-                Text(
-                  '${l10n.transcriptionTaskStatusLabel}: '
-                  '${_taskStatusLabel(l10n, task.status)}',
-                ),
-                Text(
-                  '${l10n.transcriptionTaskChunkProgress}: '
-                  '${task.chunksCompleted}/${task.chunksTotal == 0 ? '?' : task.chunksTotal}',
-                ),
-                if (task.errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    providerErrorMessage(
-                      l10n,
-                      ProviderRequestException(task.errorMessage!),
-                    ),
-                  ),
-                ],
-                if (task.transcript != null) ...[
-                  const SizedBox(height: 16),
-                  Text(l10n.transcriptionResultTitle),
-                  const SizedBox(height: 8),
-                  SelectionArea(child: Text(task.transcript!)),
-                ],
-                if (task.segments.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    '结构化句段',
-                    style: Theme.of(contentContext).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  for (final segment in task.segments)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        '${segment.speakerId == null ? '' : '说话人 ${segment.speakerId} · '}'
-                        '[${_timeLabel(segment.startSeconds)} – ${_timeLabel(segment.endSeconds)}] '
-                        '${segment.text}',
-                      ),
-                    ),
-                ],
-                if (recordAiSourceFromTask(task) case final source?) ...[
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    key: Key('task_summary_${task.id}'),
-                    onPressed: () => _showSummary(pageContext, source),
-                    icon: const Icon(Icons.auto_awesome),
-                    label: const Text('AI 总结'),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                if (task.status == TranscriptionTaskStatus.running)
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      await widget.providerController.stopTranscriptionTask(
-                        task.id,
-                      );
-                      if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    },
-                    icon: const Icon(Icons.stop_circle_outlined),
-                    label: Text(l10n.transcriptionTaskStop),
-                  )
-                else if (task.status == TranscriptionTaskStatus.failed ||
-                    task.status == TranscriptionTaskStatus.stopped)
-                  if (task.sourcePath == null)
-                    Text(
-                      providerErrorMessage(
-                        l10n,
-                        const ProviderRequestException('sourceAudioMissing'),
-                      ),
-                    )
-                  else
-                    FilledButton.icon(
-                      onPressed: () async {
-                        unawaited(
-                          widget.providerController.retryTranscriptionTask(
-                            task.id,
-                          ),
-                        );
-                        if (sheetContext.mounted) Navigator.pop(sheetContext);
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: Text(l10n.transcriptionTaskRetry),
-                    ),
-                if (task.isTerminal) ...[
-                  const SizedBox(height: 12),
-                  TextButton.icon(
-                    key: Key('transcription_task_delete_${task.id}'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(
-                        contentContext,
-                      ).colorScheme.error,
-                    ),
-                    onPressed: () async {
-                      final confirmed = await showDialog<bool>(
-                        context: pageContext,
-                        builder: (dialogContext) => AlertDialog(
-                          title: Text(l10n.transcriptionTaskDeleteConfirmTitle),
-                          content: Text(
-                            l10n.transcriptionTaskDeleteConfirmBody,
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.pop(dialogContext, false),
-                              child: Text(
-                                MaterialLocalizations.of(
-                                  dialogContext,
-                                ).cancelButtonLabel,
-                              ),
-                            ),
-                            FilledButton(
-                              onPressed: () =>
-                                  Navigator.pop(dialogContext, true),
-                              child: Text(l10n.transcriptionTaskDelete),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirmed != true) return;
-                      await widget.providerController.deleteTranscriptionTask(
-                        task.id,
-                      );
-                      if (sheetContext.mounted) Navigator.pop(sheetContext);
-                      if (pageContext.mounted) {
-                        ScaffoldMessenger.of(pageContext).showSnackBar(
-                          SnackBar(
-                            content: Text(l10n.transcriptionTaskDeleted),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.delete_outline),
-                    label: Text(l10n.transcriptionTaskDelete),
-                  ),
-                ],
-              ],
+      builder: (sheetContext) => _detailSheet(
+        sheetContext,
+        title: task.fileName,
+        backKey: const Key('task_detail_back'),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          children: [
+            Text('${task.providerName} · ${task.model}'),
+            const SizedBox(height: 8),
+            Text(
+              '${l10n.transcriptionTaskStatusLabel}: '
+              '${_taskStatusLabel(l10n, task.status)}',
             ),
-          ),
+            Text(
+              '${l10n.transcriptionTaskChunkProgress}: '
+              '${task.chunksCompleted}/${task.chunksTotal == 0 ? '?' : task.chunksTotal}',
+            ),
+            if (task.errorMessage != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                providerErrorMessage(
+                  l10n,
+                  ProviderRequestException(task.errorMessage!),
+                ),
+              ),
+            ],
+            if (task.transcript != null) ...[
+              const SizedBox(height: 16),
+              Text(l10n.transcriptionResultTitle),
+              const SizedBox(height: 8),
+              SelectionArea(child: Text(task.transcript!)),
+            ],
+            if (task.segments.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                '结构化句段',
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              for (final segment in task.segments)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    '${segment.speakerId == null ? '' : '说话人 ${segment.speakerId} · '}'
+                    '[${_timeLabel(segment.startSeconds)} – ${_timeLabel(segment.endSeconds)}] '
+                    '${segment.text}',
+                  ),
+                ),
+            ],
+            if (recordAiSourceFromTask(task) case final source?) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                key: Key('task_summary_${task.id}'),
+                onPressed: () => _showSummary(pageContext, source),
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('AI 总结'),
+              ),
+            ],
+            const SizedBox(height: 24),
+            if (task.status == TranscriptionTaskStatus.running)
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await widget.providerController.stopTranscriptionTask(
+                    task.id,
+                  );
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                },
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: Text(l10n.transcriptionTaskStop),
+              )
+            else if (task.status == TranscriptionTaskStatus.failed ||
+                task.status == TranscriptionTaskStatus.stopped)
+              if (task.sourcePath == null)
+                Text(
+                  providerErrorMessage(
+                    l10n,
+                    const ProviderRequestException('sourceAudioMissing'),
+                  ),
+                )
+              else
+                FilledButton.icon(
+                  onPressed: () async {
+                    unawaited(
+                      widget.providerController.retryTranscriptionTask(task.id),
+                    );
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: Text(l10n.transcriptionTaskRetry),
+                ),
+            if (task.isTerminal) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                key: Key('transcription_task_delete_${task.id}'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(sheetContext).colorScheme.error,
+                ),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: pageContext,
+                    builder: (dialogContext) => AlertDialog(
+                      title: Text(l10n.transcriptionTaskDeleteConfirmTitle),
+                      content: Text(l10n.transcriptionTaskDeleteConfirmBody),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: Text(
+                            MaterialLocalizations.of(
+                              dialogContext,
+                            ).cancelButtonLabel,
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: Text(l10n.transcriptionTaskDelete),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true) return;
+                  await widget.providerController.deleteTranscriptionTask(
+                    task.id,
+                  );
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  if (pageContext.mounted) {
+                    ScaffoldMessenger.of(pageContext).showSnackBar(
+                      SnackBar(content: Text(l10n.transcriptionTaskDeleted)),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: Text(l10n.transcriptionTaskDelete),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -422,36 +404,75 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
   ) => showModalBottomSheet<void>(
     context: pageContext,
     isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Text(
-              recording.title,
-              style: Theme.of(context).textTheme.titleLarge,
+    builder: (context) => _detailSheet(
+      context,
+      title: recording.title,
+      backKey: const Key('recording_detail_back'),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        children: [
+          Text('原始音频：${recording.audioPath}'),
+          const SizedBox(height: 16),
+          const Text('实时文字（临时稿）'),
+          const SizedBox(height: 8),
+          SelectionArea(child: Text(recording.realtimeTranscript)),
+          if (recordAiSourceFromRecording(recording) case final source?) ...[
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              key: Key('recording_summary_${recording.id}'),
+              onPressed: () => _showSummary(pageContext, source),
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('AI 总结'),
             ),
-            const SizedBox(height: 8),
-            Text('原始音频：${recording.audioPath}'),
-            const SizedBox(height: 16),
-            const Text('实时文字（临时稿）'),
-            const SizedBox(height: 8),
-            SelectionArea(child: Text(recording.realtimeTranscript)),
-            if (recordAiSourceFromRecording(recording) case final source?) ...[
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                key: Key('recording_summary_${recording.id}'),
-                onPressed: () => _showSummary(pageContext, source),
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('AI 总结'),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     ),
   );
+
+  Widget _detailSheet(
+    BuildContext context, {
+    required String title,
+    required Key backKey,
+    required Widget child,
+  }) {
+    return FractionallySizedBox(
+      heightFactor: 0.96,
+      child: SafeArea(
+        child: Column(
+          children: [
+            SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  IconButton(
+                    key: backKey,
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
 
   Future<void> _showSummary(BuildContext context, RecordAiSource source) async {
     if (source.revisionLabel.contains('临时稿')) {

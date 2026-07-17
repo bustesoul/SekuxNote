@@ -1,37 +1,42 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import '../../app/storage/app_data_directory.dart';
 import 'package:record/record.dart';
 
+import '../../app/storage/app_data_directory.dart';
 import '../providers/dashscope_realtime_client.dart';
 import '../providers/provider_controller.dart';
 import 'recording_background_service.dart';
 import 'recording_models.dart';
+import 'wav_audio_file.dart';
 
 class RecordingSessionController extends ChangeNotifier {
   RecordingSessionController({
     required ProviderController providerController,
-    AudioRecorder? recorder,
+    RecordingCapture? capture,
     Directory? recordingsDirectory,
   }) : _providerController = providerController,
-       _recorder = recorder ?? AudioRecorder(),
+       _capture = capture ?? RecordPluginCapture(),
        _recordingsDirectory = recordingsDirectory;
 
   final ProviderController _providerController;
-  final AudioRecorder _recorder;
+  final RecordingCapture _capture;
   Directory? _recordingsDirectory;
   final List<RecordingEntry> _recordings = [];
   final Map<int, RealtimeTranscriptEvent> _sentences = {};
   StreamSubscription<Uint8List>? _audioSubscription;
   StreamSubscription<RealtimeTranscriptEvent>? _realtimeSubscription;
   DashScopeRealtimeClient? _realtimeClient;
-  _WavStreamWriter? _writer;
+  _PcmStreamWriter? _writer;
+  Completer<void>? _audioDone;
   RecordingEntry? _active;
   Timer? _ticker;
   int _pcmBytes = 0;
+  double _audioLevel = 0;
+  int _lastAudioLevelNotificationMicros = 0;
   String _partialText = '';
   bool _loaded = false;
 
@@ -41,6 +46,7 @@ class RecordingSessionController extends ChangeNotifier {
   bool get isRecording => _active?.status == RecordingStatus.recording;
   bool get isPaused => _active?.status == RecordingStatus.paused;
   String get partialText => _partialText;
+  double get audioLevel => _audioLevel;
   int get elapsedMilliseconds => (_pcmBytes * 1000) ~/ 32000;
 
   Future<void> load() async {
@@ -61,18 +67,11 @@ class RecordingSessionController extends ChangeNotifier {
             jsonDecode(await metadata.readAsString()) as Map,
           ),
         );
-        final recovered =
-            entry.status == RecordingStatus.recording ||
-                entry.status == RecordingStatus.paused
-            ? entry.copyWith(
-                status: RecordingStatus.recovered,
-                realtimeStatus: RealtimeRecordingStatus.interrupted,
-                updatedAt: DateTime.now(),
-              )
-            : entry;
-        await _repairWavIfNeeded(File(recovered.audioPath));
+        final recovered = await _recoverOrValidateEntry(entry);
         _recordings.add(recovered);
-        if (recovered != entry) await _persist(recovered);
+        if (!mapEquals(recovered.toJson(), entry.toJson())) {
+          await _persist(recovered);
+        }
       } catch (_) {
         // A malformed metadata file is isolated; other recordings remain usable.
       }
@@ -84,7 +83,7 @@ class RecordingSessionController extends ChangeNotifier {
   Future<void> start({String? title, bool realtimeEnabled = true}) async {
     if (_active != null) throw StateError('recordingAlreadyActive');
     await load();
-    if (!await _recorder.hasPermission()) {
+    if (!await _capture.hasPermission()) {
       throw StateError('microphonePermissionDenied');
     }
     final now = DateTime.now();
@@ -92,9 +91,11 @@ class RecordingSessionController extends ChangeNotifier {
     final directory = Directory('${(await _root()).path}/$id');
     await directory.create(recursive: true);
     final audioPath = '${directory.path}/audio.wav';
-    _writer = _WavStreamWriter(File(audioPath));
+    _writer = _PcmStreamWriter(File('${directory.path}/audio.pcm.part'));
     await _writer!.open();
     _pcmBytes = 0;
+    _audioLevel = 0;
+    _lastAudioLevelNotificationMicros = 0;
     _sentences.clear();
     _partialText = '';
     final entry = RecordingEntry(
@@ -111,13 +112,14 @@ class RecordingSessionController extends ChangeNotifier {
       realtimeStatus: realtimeEnabled
           ? RealtimeRecordingStatus.connecting
           : RealtimeRecordingStatus.disabled,
+      audioIntegrityStatus: AudioIntegrityStatus.recording,
     );
     _active = entry;
     _recordings.add(entry);
     await _persist(entry);
     try {
       await RecordingBackgroundService.start(entry.title);
-      final stream = await _recorder.startStream(
+      final stream = await _capture.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
@@ -127,11 +129,17 @@ class RecordingSessionController extends ChangeNotifier {
           noiseSuppress: false,
         ),
       );
+      _audioDone = Completer<void>();
       _audioSubscription = stream.listen(
         _onAudio,
         onError: (Object error, StackTrace stack) => _failCapture(error),
+        onDone: () {
+          final done = _audioDone;
+          if (done != null && !done.isCompleted) done.complete();
+        },
       );
       _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        _writer?.flushSync();
         notifyListeners();
       });
       if (realtimeEnabled) unawaited(_connectRealtime());
@@ -148,6 +156,7 @@ class RecordingSessionController extends ChangeNotifier {
       _replaceEntry(_active!);
       await _persist(_active!);
       _active = null;
+      _audioLevel = 0;
       rethrow;
     }
   }
@@ -155,11 +164,14 @@ class RecordingSessionController extends ChangeNotifier {
   Future<void> pause() async {
     final entry = _active;
     if (entry == null || entry.status != RecordingStatus.recording) return;
-    await _recorder.pause();
+    await _capture.pause();
+    _writer?.flushSync();
+    _audioLevel = 0;
     await _finishRealtime();
     _active = entry.copyWith(
       status: RecordingStatus.paused,
       durationMilliseconds: elapsedMilliseconds,
+      pcmBytes: _pcmBytes,
       updatedAt: DateTime.now(),
     );
     _replaceEntry(_active!);
@@ -170,7 +182,7 @@ class RecordingSessionController extends ChangeNotifier {
   Future<void> resume() async {
     final entry = _active;
     if (entry == null || entry.status != RecordingStatus.paused) return;
-    await _recorder.resume();
+    await _capture.resume();
     _active = entry.copyWith(
       status: RecordingStatus.recording,
       realtimeStatus: entry.realtimeEnabled
@@ -189,24 +201,76 @@ class RecordingSessionController extends ChangeNotifier {
     if (entry == null) return null;
     _ticker?.cancel();
     _ticker = null;
+    try {
+      await _capture.stop();
+    } catch (error) {
+      return _failCapture(error, stopCapture: false);
+    }
+    try {
+      await _audioDone?.future.timeout(const Duration(seconds: 2));
+    } on TimeoutException {
+      // Some platform streams do not emit done after stop. The recorder has
+      // already stopped, so cancellation is now safe and cannot drop live data.
+    }
     await _audioSubscription?.cancel();
     _audioSubscription = null;
-    await _recorder.stop();
-    await RecordingBackgroundService.stop();
-    await _writer?.close();
+    _audioDone = null;
+    try {
+      await _writer?.close();
+    } catch (error) {
+      return _failCapture(error, stopCapture: false);
+    }
     _writer = null;
-    await _finishRealtime();
+    try {
+      await RecordingBackgroundService.stop();
+    } catch (_) {
+      // A notification/service cleanup failure must not discard valid audio.
+    }
+    Object? realtimeFinishError;
+    try {
+      await _finishRealtime();
+    } catch (error) {
+      realtimeFinishError = error;
+    }
+    final validation = await WavAudioFile.finalizePcm(
+      pcmFile: File('${File(entry.audioPath).parent.path}/audio.pcm.part'),
+      wavFile: File(entry.audioPath),
+    );
+    if (!validation.isValid) {
+      final failed = entry.copyWith(
+        status: RecordingStatus.failed,
+        durationMilliseconds: elapsedMilliseconds,
+        pcmBytes: _pcmBytes,
+        audioFileSize: validation.fileBytes,
+        audioIntegrityStatus: AudioIntegrityStatus.corrupt,
+        errorMessage: 'recordingAudioCorrupt',
+        updatedAt: DateTime.now(),
+      );
+      _active = null;
+      _audioLevel = 0;
+      _replaceEntry(failed);
+      await _persist(failed);
+      notifyListeners();
+      return failed;
+    }
     final completed = entry.copyWith(
       status: RecordingStatus.ready,
-      durationMilliseconds: elapsedMilliseconds,
+      durationMilliseconds: validation.durationMilliseconds,
       realtimeStatus: entry.realtimeEnabled
-          ? RealtimeRecordingStatus.completed
+          ? realtimeFinishError == null
+                ? RealtimeRecordingStatus.completed
+                : RealtimeRecordingStatus.interrupted
           : RealtimeRecordingStatus.disabled,
       realtimeTranscript: _completedTranscript(),
+      pcmBytes: validation.dataBytes,
+      audioFileSize: validation.fileBytes,
+      audioIntegrityStatus: AudioIntegrityStatus.valid,
       updatedAt: DateTime.now(),
-      clearError: true,
+      errorMessage: realtimeFinishError?.toString(),
+      clearError: realtimeFinishError == null,
     );
     _active = null;
+    _audioLevel = 0;
     _replaceEntry(completed);
     await _persist(completed);
     notifyListeners();
@@ -217,6 +281,7 @@ class RecordingSessionController extends ChangeNotifier {
     try {
       _writer?.add(bytes);
       _pcmBytes += bytes.length;
+      _updateAudioLevel(bytes);
       _realtimeClient?.sendAudio(bytes);
     } catch (error) {
       unawaited(_failCapture(error));
@@ -291,27 +356,72 @@ class RecordingSessionController extends ChangeNotifier {
     if (client != null) await client.dispose();
   }
 
-  Future<void> _failCapture(Object error) async {
+  Future<RecordingEntry?> _failCapture(
+    Object error, {
+    bool stopCapture = true,
+  }) async {
     final current = _active;
-    if (current == null) return;
+    if (current == null) return null;
+    if (stopCapture) {
+      try {
+        await _capture.stop();
+      } catch (_) {}
+    }
     try {
-      await _recorder.stop();
+      await _audioSubscription?.cancel();
     } catch (_) {}
-    await RecordingBackgroundService.stop();
-    await _writer?.close();
+    _audioSubscription = null;
+    _audioDone = null;
+    try {
+      await RecordingBackgroundService.stop();
+    } catch (_) {}
+    try {
+      await _writer?.close();
+    } catch (_) {}
     _writer = null;
     _ticker?.cancel();
     _ticker = null;
     final failed = current.copyWith(
       status: RecordingStatus.failed,
       durationMilliseconds: elapsedMilliseconds,
+      pcmBytes: _pcmBytes,
+      audioIntegrityStatus: AudioIntegrityStatus.unknown,
       errorMessage: error.toString(),
       updatedAt: DateTime.now(),
     );
     _active = null;
+    _audioLevel = 0;
     _replaceEntry(failed);
     await _persist(failed);
     notifyListeners();
+    return failed;
+  }
+
+  void _updateAudioLevel(Uint8List bytes) {
+    if (_active?.status != RecordingStatus.recording || bytes.length < 2) {
+      return;
+    }
+    final view = ByteData.sublistView(bytes);
+    var sumSquares = 0.0;
+    var samples = 0;
+    for (var offset = 0; offset + 1 < bytes.length; offset += 2) {
+      final normalized = view.getInt16(offset, Endian.little) / 32768.0;
+      sumSquares += normalized * normalized;
+      samples += 1;
+    }
+    if (samples == 0) return;
+    final rms = math.sqrt(sumSquares / samples);
+    final aboveNoiseFloor = ((rms - 0.006) / 0.18).clamp(0.0, 1.0);
+    final measured = math.pow(aboveNoiseFloor, 0.65).toDouble();
+    _audioLevel = measured > _audioLevel
+        ? _audioLevel * 0.25 + measured * 0.75
+        : _audioLevel * 0.72 + measured * 0.28;
+
+    final now = DateTime.now().microsecondsSinceEpoch;
+    if (now - _lastAudioLevelNotificationMicros >= 50000) {
+      _lastAudioLevelNotificationMicros = now;
+      notifyListeners();
+    }
   }
 
   String _completedTranscript() {
@@ -341,13 +451,61 @@ class RecordingSessionController extends ChangeNotifier {
     await temporary.rename(target.path);
   }
 
-  Future<void> _repairWavIfNeeded(File file) async {
-    if (!await file.exists() || await file.length() < 44) return;
-    final handle = await file.open(mode: FileMode.writeOnly);
-    final dataBytes = await file.length() - 44;
-    await handle.setPosition(0);
-    await handle.writeFrom(_wavHeader(dataBytes));
-    await handle.close();
+  Future<RecordingEntry> _recoverOrValidateEntry(RecordingEntry entry) async {
+    final wavFile = File(entry.audioPath);
+    final pcmFile = File('${wavFile.parent.path}/audio.pcm.part');
+    final interrupted =
+        entry.status == RecordingStatus.recording ||
+        entry.status == RecordingStatus.paused;
+    WavValidation validation;
+    var wasRecovered = false;
+
+    if (await pcmFile.exists() && await pcmFile.length() > 0) {
+      validation = await WavAudioFile.finalizePcm(
+        pcmFile: pcmFile,
+        wavFile: wavFile,
+      );
+      wasRecovered = validation.isValid;
+    } else {
+      validation = await WavAudioFile.validate(
+        wavFile,
+        requireCanonicalHeader: true,
+      );
+      if (!validation.isValid && interrupted && validation.fileBytes > 44) {
+        validation = await WavAudioFile.recoverLegacyInterruptedFile(wavFile);
+        wasRecovered = validation.isValid;
+      }
+    }
+
+    if (!validation.isValid) {
+      return entry.copyWith(
+        status: RecordingStatus.failed,
+        realtimeStatus: interrupted
+            ? RealtimeRecordingStatus.interrupted
+            : entry.realtimeStatus,
+        pcmBytes: validation.dataBytes,
+        audioFileSize: validation.fileBytes,
+        audioIntegrityStatus: AudioIntegrityStatus.corrupt,
+        errorMessage: 'recordingAudioCorrupt',
+        updatedAt: DateTime.now(),
+      );
+    }
+    return entry.copyWith(
+      status: interrupted || wasRecovered
+          ? RecordingStatus.recovered
+          : entry.status,
+      realtimeStatus: interrupted
+          ? RealtimeRecordingStatus.interrupted
+          : entry.realtimeStatus,
+      durationMilliseconds: validation.durationMilliseconds,
+      pcmBytes: validation.dataBytes,
+      audioFileSize: validation.fileBytes,
+      audioIntegrityStatus: interrupted || wasRecovered
+          ? AudioIntegrityStatus.recovered
+          : AudioIntegrityStatus.valid,
+      updatedAt: interrupted || wasRecovered ? DateTime.now() : entry.updatedAt,
+      clearError: interrupted || wasRecovered,
+    );
   }
 
   @override
@@ -356,35 +514,72 @@ class RecordingSessionController extends ChangeNotifier {
     unawaited(_audioSubscription?.cancel());
     unawaited(_realtimeSubscription?.cancel());
     unawaited(_realtimeClient?.dispose());
-    unawaited(_recorder.dispose());
+    unawaited(_capture.dispose());
     _writer?.closeSync();
     super.dispose();
   }
 }
 
-class _WavStreamWriter {
-  _WavStreamWriter(this.file);
+abstract interface class RecordingCapture {
+  Future<bool> hasPermission();
+
+  Future<Stream<Uint8List>> startStream(RecordConfig config);
+
+  Future<void> pause();
+
+  Future<void> resume();
+
+  Future<void> stop();
+
+  Future<void> dispose();
+}
+
+class RecordPluginCapture implements RecordingCapture {
+  RecordPluginCapture({AudioRecorder? recorder})
+    : _recorder = recorder ?? AudioRecorder();
+
+  final AudioRecorder _recorder;
+
+  @override
+  Future<bool> hasPermission() => _recorder.hasPermission();
+
+  @override
+  Future<Stream<Uint8List>> startStream(RecordConfig config) =>
+      _recorder.startStream(config);
+
+  @override
+  Future<void> pause() => _recorder.pause();
+
+  @override
+  Future<void> resume() => _recorder.resume();
+
+  @override
+  Future<void> stop() async {
+    await _recorder.stop();
+  }
+
+  @override
+  Future<void> dispose() => _recorder.dispose();
+}
+
+class _PcmStreamWriter {
+  _PcmStreamWriter(this.file);
 
   final File file;
   RandomAccessFile? _handle;
-  int _dataBytes = 0;
 
   Future<void> open() async {
-    _handle = await file.open(mode: FileMode.write);
-    await _handle!.writeFrom(_wavHeader(0));
+    _handle = await file.open(mode: FileMode.writeOnly);
   }
 
   void add(Uint8List bytes) {
     _handle?.writeFromSync(bytes);
-    _dataBytes += bytes.length;
   }
 
   Future<void> close() async {
     final handle = _handle;
     _handle = null;
     if (handle == null) return;
-    await handle.setPosition(0);
-    await handle.writeFrom(_wavHeader(_dataBytes));
     await handle.flush();
     await handle.close();
   }
@@ -393,33 +588,9 @@ class _WavStreamWriter {
     final handle = _handle;
     _handle = null;
     if (handle == null) return;
-    handle.setPositionSync(0);
-    handle.writeFromSync(_wavHeader(_dataBytes));
     handle.flushSync();
     handle.closeSync();
   }
-}
 
-Uint8List _wavHeader(int dataBytes) {
-  final data = ByteData(44);
-  void ascii(int offset, String value) {
-    for (var index = 0; index < value.length; index += 1) {
-      data.setUint8(offset + index, value.codeUnitAt(index));
-    }
-  }
-
-  ascii(0, 'RIFF');
-  data.setUint32(4, 36 + dataBytes, Endian.little);
-  ascii(8, 'WAVE');
-  ascii(12, 'fmt ');
-  data.setUint32(16, 16, Endian.little);
-  data.setUint16(20, 1, Endian.little);
-  data.setUint16(22, 1, Endian.little);
-  data.setUint32(24, 16000, Endian.little);
-  data.setUint32(28, 32000, Endian.little);
-  data.setUint16(32, 2, Endian.little);
-  data.setUint16(34, 16, Endian.little);
-  ascii(36, 'data');
-  data.setUint32(40, dataBytes, Endian.little);
-  return data.buffer.asUint8List();
+  void flushSync() => _handle?.flushSync();
 }

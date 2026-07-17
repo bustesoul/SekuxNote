@@ -27,6 +27,7 @@ String providerErrorMessage(AppLocalizations l10n, Object error) {
     'rateLimited' => l10n.providerErrorRateLimited,
     'providerUnavailable' => l10n.providerErrorUnavailable,
     'audioFileTooLarge' => l10n.providerErrorAudioFileTooLarge,
+    'invalidAudioFile' => l10n.providerErrorInvalidAudioFile,
     'invalidProviderResponse' => l10n.providerErrorInvalidResponse,
     'transcriptionTimedOut' => l10n.providerErrorTranscriptionTimedOut,
     'taskInterrupted' => l10n.providerErrorTaskInterrupted,

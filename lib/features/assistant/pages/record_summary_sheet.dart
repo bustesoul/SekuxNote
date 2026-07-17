@@ -59,100 +59,132 @@ class _RecordSummarySheetState extends State<RecordSummarySheet> {
       final provider = widget.providerController.textProviderById(
         _providerId ?? settings.defaultProviderId,
       );
-      return SafeArea(
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.85,
-          maxChildSize: 0.96,
-          builder: (context, scrollController) => ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.all(20),
+      return FractionallySizedBox(
+        heightFactor: 0.96,
+        child: SafeArea(
+          child: Column(
             children: [
-              Text(
-                'AI 总结 · ${widget.source.title}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${widget.source.revisionLabel} · 约 ${widget.source.characterCount} 字',
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: provider?.id,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: '文字 AI 供应商'),
-                      items: settings.providers
-                          .where((value) => value.enabled)
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value.id,
-                              child: Text(value.name),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (value) => setState(() {
-                        _providerId = value;
-                        _modelId = null;
-                      }),
+              SizedBox(
+                height: 56,
+                child: Row(
+                  children: [
+                    IconButton(
+                      key: const Key('record_summary_back'),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      key: ValueKey('summary_model_${provider?.id}'),
-                      initialValue: provider?.model,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: '模型'),
-                      items: _models(provider)
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (value) => _modelId = value,
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'AI 总结 · ${widget.source.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (widget.controller.generating)
-                OutlinedButton.icon(
-                  onPressed: widget.controller.cancelGeneration,
-                  icon: const Icon(Icons.stop),
-                  label: const Text('取消生成'),
-                )
-              else
-                FilledButton.icon(
-                  key: const Key('record_generate_summary'),
-                  onPressed: provider == null ? null : _generate,
-                  icon: const Icon(Icons.auto_awesome),
-                  label: const Text('生成新总结'),
+                    const SizedBox(width: 16),
+                  ],
                 ),
-              const SizedBox(height: 20),
-              FutureBuilder<List<NoteArtifact>>(
-                future: _artifacts,
-                builder: (context, snapshot) {
-                  final artifacts = snapshot.data ?? const <NoteArtifact>[];
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (artifacts.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('尚未生成总结。生成后将持久保存在本机。'),
-                    );
-                  }
-                  return Column(
-                    children: artifacts
-                        .map((artifact) => _ArtifactCard(artifact: artifact))
-                        .toList(growable: false),
-                  );
-                },
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Text(
+                      '${widget.source.revisionLabel} · 约 ${widget.source.characterCount} 字',
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: provider?.id,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: '文字 AI 供应商',
+                            ),
+                            items: settings.providers
+                                .where((value) => value.enabled)
+                                .map(
+                                  (value) => DropdownMenuItem(
+                                    value: value.id,
+                                    child: Text(value.name),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) => setState(() {
+                              _providerId = value;
+                              _modelId = null;
+                            }),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            key: ValueKey('summary_model_${provider?.id}'),
+                            initialValue: provider?.model,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: '模型'),
+                            items: _models(provider)
+                                .map(
+                                  (value) => DropdownMenuItem(
+                                    value: value,
+                                    child: Text(value),
+                                  ),
+                                )
+                                .toList(growable: false),
+                            onChanged: (value) => _modelId = value,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (widget.controller.generating)
+                      OutlinedButton.icon(
+                        onPressed: widget.controller.cancelGeneration,
+                        icon: const Icon(Icons.stop),
+                        label: const Text('取消生成'),
+                      )
+                    else
+                      FilledButton.icon(
+                        key: const Key('record_generate_summary'),
+                        onPressed: provider == null ? null : _generate,
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text('生成新总结'),
+                      ),
+                    const SizedBox(height: 20),
+                    FutureBuilder<List<NoteArtifact>>(
+                      future: _artifacts,
+                      builder: (context, snapshot) {
+                        final artifacts =
+                            snapshot.data ?? const <NoteArtifact>[];
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        if (artifacts.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text('尚未生成总结。生成后将持久保存在本机。'),
+                          );
+                        }
+                        return Column(
+                          children: artifacts
+                              .map(
+                                (artifact) => _ArtifactCard(artifact: artifact),
+                              )
+                              .toList(growable: false),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

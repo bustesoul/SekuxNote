@@ -11,8 +11,35 @@ import 'package:sekuxnote/features/providers/provider_controller.dart';
 import 'package:sekuxnote/features/providers/provider_models.dart';
 import 'package:sekuxnote/features/providers/provider_storage.dart';
 import 'package:sekuxnote/features/providers/task_audio_store.dart';
+import 'package:sekuxnote/features/recording/wav_audio_file.dart';
 
 void main() {
+  test('damaged WAV is rejected before any provider request', () async {
+    var requests = 0;
+    final controller = ProviderController(
+      settingsStore: MemoryProviderSettingsStore(),
+      credentialStore: MemoryCredentialStore(),
+      taskStore: MemoryTranscriptionTaskStore(),
+      taskAudioStore: MemoryTaskAudioStore(),
+      apiClient: OpenAiApiClient(
+        client: MockClient((_) async {
+          requests += 1;
+          return http.Response('{"text":"unexpected"}', 200);
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+    await _configure(controller);
+
+    final task = await controller.startTranscriptionTask(
+      SelectedAudioFile(name: 'broken.wav', bytes: WavAudioFile.header(0)),
+    );
+
+    expect(task.status, TranscriptionTaskStatus.failed);
+    expect(task.errorMessage, 'invalidAudioFile');
+    expect(requests, 0);
+  });
+
   test('FR-IMP failed transcription remains as a persisted task', () async {
     final taskStore = MemoryTranscriptionTaskStore();
     final controller = ProviderController(

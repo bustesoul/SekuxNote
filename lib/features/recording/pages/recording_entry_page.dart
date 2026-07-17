@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../recording_models.dart';
 import '../recording_session_controller.dart';
+import '../widgets/audio_wave_ring.dart';
 
 class RecordingEntryPage extends StatefulWidget {
   const RecordingEntryPage({super.key, required this.controller});
@@ -115,12 +116,10 @@ class _RecordingEntryPageState extends State<RecordingEntryPage> {
     final completed = entry.realtimeTranscript;
     final partial = widget.controller.partialText;
     return [
-      Icon(
-        entry.status == RecordingStatus.paused
-            ? Icons.pause_circle
-            : Icons.graphic_eq,
-        size: 72,
-        color: Theme.of(context).colorScheme.error,
+      AudioWaveRing(
+        key: const Key('recording_audio_level'),
+        level: widget.controller.audioLevel,
+        paused: entry.status == RecordingStatus.paused,
       ),
       const SizedBox(height: 16),
       Text(

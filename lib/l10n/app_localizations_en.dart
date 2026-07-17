@@ -361,6 +361,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The audio file must be smaller than 25 MB.';
 
   @override
+  String get providerErrorInvalidAudioFile =>
+      'This WAV file is empty or damaged. Record the audio again or choose a valid source file.';
+
+  @override
   String get providerErrorFilePickerPermission =>
       'This app does not have permission to open selected files. Rebuild the macOS app and try again.';
 
@@ -387,4 +391,94 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get providerErrorRequestFailed =>
       'The API request failed. Check the configuration and network.';
+
+  @override
+  String get webDavTitle => 'WebDAV configuration sync';
+
+  @override
+  String get webDavSettingsSubtitle =>
+      'Sync provider settings and encrypted API keys';
+
+  @override
+  String get webDavServerUrl => 'Server URL';
+
+  @override
+  String get webDavUsername => 'Username';
+
+  @override
+  String get webDavPassword => 'Password';
+
+  @override
+  String get webDavPasswordEncryptionHint =>
+      'Also used to encrypt API keys in the remote file.';
+
+  @override
+  String get webDavPasswordRequired =>
+      'Enter a WebDAV password for authentication and encryption.';
+
+  @override
+  String get webDavRemotePath => 'Remote folder';
+
+  @override
+  String get webDavSyncScopeTitle => 'Sync scope';
+
+  @override
+  String get webDavSyncScopeBody =>
+      'Includes text AI and transcription provider settings and API keys. Recordings, records, transcripts, tasks, summaries, and AI conversations are excluded.';
+
+  @override
+  String get webDavRemoteNotFound => 'No remote configuration found yet.';
+
+  @override
+  String webDavRemoteUpdatedAt(String time) {
+    return 'Remote configuration updated: $time';
+  }
+
+  @override
+  String get webDavTestConnection => 'Test connection';
+
+  @override
+  String get webDavTestSucceeded => 'WebDAV connection succeeded';
+
+  @override
+  String get webDavUpload => 'Upload local configuration';
+
+  @override
+  String get webDavUploadSucceeded => 'Configuration uploaded';
+
+  @override
+  String get webDavDownload => 'Download remote configuration';
+
+  @override
+  String get webDavDownloadConfirmTitle =>
+      'Replace local provider configuration?';
+
+  @override
+  String get webDavDownloadConfirmBody =>
+      'Provider settings and API keys on this device will be replaced by the encrypted remote configuration. Recordings and AI conversations are not affected.';
+
+  @override
+  String get webDavDownloadAction => 'Download and replace';
+
+  @override
+  String get webDavDownloadSucceeded => 'Remote configuration applied';
+
+  @override
+  String get webDavCancel => 'Cancel';
+
+  @override
+  String get webDavInvalidUrl => 'Enter a valid HTTP or HTTPS WebDAV URL.';
+
+  @override
+  String get webDavRemoteMissing =>
+      'The remote configuration file does not exist yet.';
+
+  @override
+  String webDavRequestFailed(String detail) {
+    return 'WebDAV request failed: $detail';
+  }
+
+  @override
+  String get webDavDecryptOrFormatFailed =>
+      'The remote file could not be decrypted or is not a valid SekuxNote configuration. Check the WebDAV password.';
 }

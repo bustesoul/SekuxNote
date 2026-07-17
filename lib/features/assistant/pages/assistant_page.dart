@@ -426,6 +426,30 @@ class _RecordSourcePickerState extends State<_RecordSourcePicker> {
         maxChildSize: 0.9,
         builder: (context, controller) => Column(
           children: [
+            SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  IconButton(
+                    key: const Key('record_source_picker_back'),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '选择记录',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(16),
               child: TextField(

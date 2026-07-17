@@ -5,6 +5,7 @@ import '../../providers/pages/text_providers_page.dart';
 import '../../providers/pages/transcription_providers_page.dart';
 import '../../providers/provider_controller.dart';
 import '../../../l10n/app_localizations.dart';
+import 'webdav_sync_page.dart';
 
 /// Placeholder settings hub (text AI / transcription / privacy to follow).
 class SettingsPage extends StatelessWidget {
@@ -69,6 +70,18 @@ class SettingsPage extends StatelessWidget {
               MaterialPageRoute<void>(
                 builder: (_) =>
                     TextProvidersPage(controller: providerController),
+              ),
+            ),
+          ),
+          ListTile(
+            key: const Key('settings_webdav_sync'),
+            leading: const Icon(Icons.cloud_sync_outlined),
+            title: Text(l10n.webDavTitle),
+            subtitle: Text(l10n.webDavSettingsSubtitle),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    WebDavSyncPage(providerController: providerController),
               ),
             ),
           ),

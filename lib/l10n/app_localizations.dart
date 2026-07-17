@@ -722,6 +722,12 @@ abstract class AppLocalizations {
   /// **'The audio file must be smaller than 25 MB.'**
   String get providerErrorAudioFileTooLarge;
 
+  /// No description provided for @providerErrorInvalidAudioFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This WAV file is empty or damaged. Record the audio again or choose a valid source file.'**
+  String get providerErrorInvalidAudioFile;
+
   /// No description provided for @providerErrorFilePickerPermission.
   ///
   /// In en, this message translates to:
@@ -763,6 +769,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The API request failed. Check the configuration and network.'**
   String get providerErrorRequestFailed;
+
+  /// No description provided for @webDavTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV configuration sync'**
+  String get webDavTitle;
+
+  /// No description provided for @webDavSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync provider settings and encrypted API keys'**
+  String get webDavSettingsSubtitle;
+
+  /// No description provided for @webDavServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get webDavServerUrl;
+
+  /// No description provided for @webDavUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get webDavUsername;
+
+  /// No description provided for @webDavPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get webDavPassword;
+
+  /// No description provided for @webDavPasswordEncryptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Also used to encrypt API keys in the remote file.'**
+  String get webDavPasswordEncryptionHint;
+
+  /// No description provided for @webDavPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a WebDAV password for authentication and encryption.'**
+  String get webDavPasswordRequired;
+
+  /// No description provided for @webDavRemotePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote folder'**
+  String get webDavRemotePath;
+
+  /// No description provided for @webDavSyncScopeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync scope'**
+  String get webDavSyncScopeTitle;
+
+  /// No description provided for @webDavSyncScopeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Includes text AI and transcription provider settings and API keys. Recordings, records, transcripts, tasks, summaries, and AI conversations are excluded.'**
+  String get webDavSyncScopeBody;
+
+  /// No description provided for @webDavRemoteNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No remote configuration found yet.'**
+  String get webDavRemoteNotFound;
+
+  /// No description provided for @webDavRemoteUpdatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote configuration updated: {time}'**
+  String webDavRemoteUpdatedAt(String time);
+
+  /// No description provided for @webDavTestConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection'**
+  String get webDavTestConnection;
+
+  /// No description provided for @webDavTestSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV connection succeeded'**
+  String get webDavTestSucceeded;
+
+  /// No description provided for @webDavUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload local configuration'**
+  String get webDavUpload;
+
+  /// No description provided for @webDavUploadSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Configuration uploaded'**
+  String get webDavUploadSucceeded;
+
+  /// No description provided for @webDavDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download remote configuration'**
+  String get webDavDownload;
+
+  /// No description provided for @webDavDownloadConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace local provider configuration?'**
+  String get webDavDownloadConfirmTitle;
+
+  /// No description provided for @webDavDownloadConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider settings and API keys on this device will be replaced by the encrypted remote configuration. Recordings and AI conversations are not affected.'**
+  String get webDavDownloadConfirmBody;
+
+  /// No description provided for @webDavDownloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and replace'**
+  String get webDavDownloadAction;
+
+  /// No description provided for @webDavDownloadSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Remote configuration applied'**
+  String get webDavDownloadSucceeded;
+
+  /// No description provided for @webDavCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get webDavCancel;
+
+  /// No description provided for @webDavInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid HTTP or HTTPS WebDAV URL.'**
+  String get webDavInvalidUrl;
+
+  /// No description provided for @webDavRemoteMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The remote configuration file does not exist yet.'**
+  String get webDavRemoteMissing;
+
+  /// No description provided for @webDavRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'WebDAV request failed: {detail}'**
+  String webDavRequestFailed(String detail);
+
+  /// No description provided for @webDavDecryptOrFormatFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The remote file could not be decrypted or is not a valid SekuxNote configuration. Check the WebDAV password.'**
+  String get webDavDecryptOrFormatFailed;
 }
 
 class _AppLocalizationsDelegate

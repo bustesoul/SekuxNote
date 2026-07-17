@@ -100,6 +100,7 @@ void main() {
 
     await tester.tap(find.text(l10n.tabSettings));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings_webdav_sync')), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings_text_provider')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('text_provider_add')), findsOneWidget);
@@ -224,6 +225,36 @@ void main() {
     await tester.tap(find.text(l10n.tabAssistant));
     await tester.pumpAndSettle();
     expect(find.text('尚未发送的草稿'), findsOneWidget);
+  });
+
+  testWidgets('all bottom sheets provide an explicit back button', (
+    tester,
+  ) async {
+    final l10n = await pumpApp(tester);
+
+    await tester.tap(find.text(l10n.tabAssistant));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('assistant_attach_record')));
+    await tester.pumpAndSettle();
+    final sourceBack = find.byKey(const Key('record_source_picker_back'));
+    expect(sourceBack, findsOneWidget);
+    await tester.tap(sourceBack);
+    await tester.pumpAndSettle();
+    expect(sourceBack, findsNothing);
+
+    await tester.tap(find.text(l10n.tabSettings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings_transcription_provider')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('transcription_provider_add')));
+    await tester.pumpAndSettle();
+    final providerBack = find.byKey(
+      const Key('transcription_provider_picker_back'),
+    );
+    expect(providerBack, findsOneWidget);
+    await tester.tap(providerBack);
+    await tester.pumpAndSettle();
+    expect(providerBack, findsNothing);
   });
 
   test('FR-IMP transcription task is app-session scoped', () {

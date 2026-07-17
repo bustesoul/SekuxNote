@@ -65,6 +65,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('record_summary_back')), findsOneWidget);
     expect(
       find.byKey(const Key('summary_view_toggle_markdown-note')),
       findsOneWidget,

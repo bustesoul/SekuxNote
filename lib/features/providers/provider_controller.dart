@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../recording/wav_audio_file.dart';
 import 'audio_chunker.dart';
 import 'dashscope_realtime_client.dart';
 import 'openai_api_client.dart';
@@ -105,6 +106,112 @@ class ProviderController extends ChangeNotifier {
   Future<void> load() async {
     _textSettings = await _settingsStore.readTextSettings();
     _transcriptionSettings = await _settingsStore.readTranscriptionSettings();
+    await _refreshConfiguredCredentials();
+    final unfinished = (await _taskStore.list()).where(
+      (task) =>
+          task.status == TranscriptionTaskStatus.queued ||
+          task.status == TranscriptionTaskStatus.running,
+    );
+    for (final task in unfinished) {
+      final canResumeRemote =
+          task.providerType == TranscriptionProviderType.dashScopeFunAsr &&
+          !task.model.startsWith('fun-asr-flash') &&
+          task.remoteTaskId?.isNotEmpty == true;
+      if (canResumeRemote) {
+        unawaited(_resumeDashScopeTask(task));
+      } else {
+        await _taskStore.update(
+          task.copyWith(
+            status: TranscriptionTaskStatus.failed,
+            updatedAt: DateTime.now(),
+            errorMessage: 'taskInterrupted',
+          ),
+        );
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Builds the only payload allowed to leave the device for configuration
+  /// sync. Recording entries, assistant data and transcription tasks are never
+  /// read here, so they cannot accidentally be included in the remote file.
+  Future<Map<String, Object?>> exportConfigurationSnapshot() async {
+    final credentials = <String, String>{};
+    final references = <String>{
+      ..._textSettings.providers.map((provider) => provider.credentialRef),
+      ..._transcriptionSettings.providers.map(
+        (provider) => provider.credentialRef,
+      ),
+    };
+    for (final reference in references) {
+      final value = await _credentialStore.read(reference);
+      if (value?.isNotEmpty == true) credentials[reference] = value!;
+    }
+    return {
+      'schemaVersion': 1,
+      'exportedAt': DateTime.now().toUtc().toIso8601String(),
+      'textProviderSettings': _textSettings.toJson(),
+      'transcriptionProviderSettings': _transcriptionSettings.toJson(),
+      'credentials': credentials,
+    };
+  }
+
+  /// Replaces provider configuration with a validated remote snapshot. Only
+  /// credential references owned by the imported providers may be written.
+  Future<void> importConfigurationSnapshot(
+    Map<String, Object?> snapshot,
+  ) async {
+    if (snapshot['schemaVersion'] != 1) {
+      throw const FormatException('unsupportedConfigurationSchema');
+    }
+    final textJson = Map<String, Object?>.from(
+      snapshot['textProviderSettings']! as Map,
+    );
+    final transcriptionJson = Map<String, Object?>.from(
+      snapshot['transcriptionProviderSettings']! as Map,
+    );
+    final text = TextProviderSettings.fromJson(textJson);
+    final transcription = TranscriptionProviderSettings.fromJson(
+      transcriptionJson,
+    );
+    if (text.providers.isEmpty || transcription.providers.isEmpty) {
+      throw const FormatException('providerConfigurationEmpty');
+    }
+
+    final allowedReferences = <String>{
+      ...text.providers.map((provider) => provider.credentialRef),
+      ...transcription.providers.map((provider) => provider.credentialRef),
+    };
+    final referencesToClear = <String>{
+      ..._textSettings.providers.map((provider) => provider.credentialRef),
+      ..._transcriptionSettings.providers.map(
+        (provider) => provider.credentialRef,
+      ),
+      ...allowedReferences,
+    };
+    for (final reference in referencesToClear) {
+      await _credentialStore.delete(reference);
+    }
+    final rawCredentials = snapshot['credentials'];
+    if (rawCredentials is Map) {
+      for (final entry in rawCredentials.entries) {
+        final reference = entry.key.toString();
+        final secret = entry.value?.toString() ?? '';
+        if (allowedReferences.contains(reference) && secret.isNotEmpty) {
+          await _credentialStore.write(reference, secret);
+        }
+      }
+    }
+
+    await _settingsStore.writeTextSettings(text);
+    await _settingsStore.writeTranscriptionSettings(transcription);
+    _textSettings = text;
+    _transcriptionSettings = transcription;
+    await _refreshConfiguredCredentials();
+    notifyListeners();
+  }
+
+  Future<void> _refreshConfiguredCredentials() async {
     _configuredTextCredentialRefs
       ..clear()
       ..addAll(
@@ -133,29 +240,6 @@ class ProviderController extends ChangeNotifier {
           }),
         )).whereType<String>(),
       );
-    final unfinished = (await _taskStore.list()).where(
-      (task) =>
-          task.status == TranscriptionTaskStatus.queued ||
-          task.status == TranscriptionTaskStatus.running,
-    );
-    for (final task in unfinished) {
-      final canResumeRemote =
-          task.providerType == TranscriptionProviderType.dashScopeFunAsr &&
-          !task.model.startsWith('fun-asr-flash') &&
-          task.remoteTaskId?.isNotEmpty == true;
-      if (canResumeRemote) {
-        unawaited(_resumeDashScopeTask(task));
-      } else {
-        await _taskStore.update(
-          task.copyWith(
-            status: TranscriptionTaskStatus.failed,
-            updatedAt: DateTime.now(),
-            errorMessage: 'taskInterrupted',
-          ),
-        );
-      }
-    }
-    notifyListeners();
   }
 
   Future<void> saveText({
@@ -359,6 +443,10 @@ class ProviderController extends ChangeNotifier {
     String? providerId,
     TranscriptionRequestOptions? options,
   }) async {
+    if (file.name.toLowerCase().endsWith('.wav') &&
+        !WavAudioFile.validateBytes(file.bytes).isValid) {
+      throw const ProviderRequestException('invalidAudioFile');
+    }
     final config = transcriptionProviderById(
       providerId ?? _transcriptionSettings.defaultProviderId,
     );
@@ -515,6 +603,14 @@ class ProviderController extends ChangeNotifier {
     void Function({required int total, required int completed})? onProgress,
     void Function(String text)? onPartialText,
   }) async {
+    if (source.name.toLowerCase().endsWith('.wav') &&
+        !WavAudioFile.validateBytes(source.bytes).isValid) {
+      return _updateTask(
+        task,
+        status: TranscriptionTaskStatus.failed,
+        errorMessage: 'invalidAudioFile',
+      );
+    }
     final savedProvider = transcriptionProviderById(task.providerId);
     if (savedProvider == null) {
       return _updateTask(

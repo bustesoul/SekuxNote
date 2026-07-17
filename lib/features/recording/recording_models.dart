@@ -1,5 +1,7 @@
 enum RecordingStatus { recording, paused, ready, recovered, failed }
 
+enum AudioIntegrityStatus { recording, valid, recovered, corrupt, unknown }
+
 enum RealtimeRecordingStatus {
   disabled,
   connecting,
@@ -21,6 +23,12 @@ class RecordingEntry {
     required this.realtimeStatus,
     this.realtimeTranscript = '',
     this.errorMessage,
+    this.sampleRate = 16000,
+    this.channels = 1,
+    this.bitsPerSample = 16,
+    this.pcmBytes = 0,
+    this.audioFileSize,
+    this.audioIntegrityStatus = AudioIntegrityStatus.unknown,
   });
 
   final String id;
@@ -34,6 +42,12 @@ class RecordingEntry {
   final RealtimeRecordingStatus realtimeStatus;
   final String realtimeTranscript;
   final String? errorMessage;
+  final int sampleRate;
+  final int channels;
+  final int bitsPerSample;
+  final int pcmBytes;
+  final int? audioFileSize;
+  final AudioIntegrityStatus audioIntegrityStatus;
 
   RecordingEntry copyWith({
     RecordingStatus? status,
@@ -43,6 +57,9 @@ class RecordingEntry {
     String? realtimeTranscript,
     String? errorMessage,
     bool clearError = false,
+    int? pcmBytes,
+    int? audioFileSize,
+    AudioIntegrityStatus? audioIntegrityStatus,
   }) => RecordingEntry(
     id: id,
     title: title,
@@ -55,6 +72,12 @@ class RecordingEntry {
     realtimeStatus: realtimeStatus ?? this.realtimeStatus,
     realtimeTranscript: realtimeTranscript ?? this.realtimeTranscript,
     errorMessage: clearError ? null : errorMessage ?? this.errorMessage,
+    sampleRate: sampleRate,
+    channels: channels,
+    bitsPerSample: bitsPerSample,
+    pcmBytes: pcmBytes ?? this.pcmBytes,
+    audioFileSize: audioFileSize ?? this.audioFileSize,
+    audioIntegrityStatus: audioIntegrityStatus ?? this.audioIntegrityStatus,
   );
 
   factory RecordingEntry.fromJson(Map<String, Object?> json) => RecordingEntry(
@@ -75,6 +98,15 @@ class RecordingEntry {
     ),
     realtimeTranscript: json['realtimeTranscript'] as String? ?? '',
     errorMessage: json['errorMessage'] as String?,
+    sampleRate: json['sampleRate'] as int? ?? 16000,
+    channels: json['channels'] as int? ?? 1,
+    bitsPerSample: json['bitsPerSample'] as int? ?? 16,
+    pcmBytes: json['pcmBytes'] as int? ?? 0,
+    audioFileSize: json['audioFileSize'] as int?,
+    audioIntegrityStatus: AudioIntegrityStatus.values.firstWhere(
+      (value) => value.name == json['audioIntegrityStatus'],
+      orElse: () => AudioIntegrityStatus.unknown,
+    ),
   );
 
   Map<String, Object?> toJson() => {
@@ -89,5 +121,11 @@ class RecordingEntry {
     'realtimeStatus': realtimeStatus.name,
     'realtimeTranscript': realtimeTranscript,
     'errorMessage': errorMessage,
+    'sampleRate': sampleRate,
+    'channels': channels,
+    'bitsPerSample': bitsPerSample,
+    'pcmBytes': pcmBytes,
+    'audioFileSize': audioFileSize,
+    'audioIntegrityStatus': audioIntegrityStatus.name,
   };
 }

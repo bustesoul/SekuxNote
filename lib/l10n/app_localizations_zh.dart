@@ -337,6 +337,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get providerErrorAudioFileTooLarge => '音频文件必须小于 25 MB。';
 
   @override
+  String get providerErrorInvalidAudioFile =>
+      '这个 WAV 文件为空或已经损坏，请重新录音或选择有效的源文件。';
+
+  @override
   String get providerErrorFilePickerPermission =>
       '应用没有打开所选文件的权限。请重新构建 macOS 应用后重试。';
 
@@ -357,6 +361,91 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get providerErrorRequestFailed => 'API 请求失败，请检查配置和网络。';
+
+  @override
+  String get webDavTitle => 'WebDAV 配置同步';
+
+  @override
+  String get webDavSettingsSubtitle => '同步供应商配置和加密的 API Key';
+
+  @override
+  String get webDavServerUrl => '服务器地址';
+
+  @override
+  String get webDavUsername => '用户名';
+
+  @override
+  String get webDavPassword => '密码';
+
+  @override
+  String get webDavPasswordEncryptionHint => '同时用于加密远端文件中的 API Key。';
+
+  @override
+  String get webDavPasswordRequired => '请输入 WebDAV 密码，用于认证和配置加密。';
+
+  @override
+  String get webDavRemotePath => '远端目录';
+
+  @override
+  String get webDavSyncScopeTitle => '同步范围';
+
+  @override
+  String get webDavSyncScopeBody =>
+      '包含文字 AI、语音转写供应商配置及 API Key；不包含录音、记录、转写结果、任务、总结和 AI 对话。';
+
+  @override
+  String get webDavRemoteNotFound => '远端还没有配置文件。';
+
+  @override
+  String webDavRemoteUpdatedAt(String time) {
+    return '远端配置更新时间：$time';
+  }
+
+  @override
+  String get webDavTestConnection => '测试连接';
+
+  @override
+  String get webDavTestSucceeded => 'WebDAV 连接成功';
+
+  @override
+  String get webDavUpload => '上传本机配置';
+
+  @override
+  String get webDavUploadSucceeded => '配置已上传';
+
+  @override
+  String get webDavDownload => '下载远端配置';
+
+  @override
+  String get webDavDownloadConfirmTitle => '覆盖本机供应商配置？';
+
+  @override
+  String get webDavDownloadConfirmBody =>
+      '本机供应商设置和 API Key 将被加密的远端配置覆盖。录音、记录和 AI 对话不会受影响。';
+
+  @override
+  String get webDavDownloadAction => '下载并覆盖';
+
+  @override
+  String get webDavDownloadSucceeded => '远端配置已应用';
+
+  @override
+  String get webDavCancel => '取消';
+
+  @override
+  String get webDavInvalidUrl => '请输入有效的 HTTP 或 HTTPS WebDAV 地址。';
+
+  @override
+  String get webDavRemoteMissing => '远端配置文件尚不存在。';
+
+  @override
+  String webDavRequestFailed(String detail) {
+    return 'WebDAV 请求失败：$detail';
+  }
+
+  @override
+  String get webDavDecryptOrFormatFailed =>
+      '无法解密远端文件，或文件不是有效的 SekuxNote 配置。请检查 WebDAV 密码。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hans`).
@@ -692,6 +781,10 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   String get providerErrorAudioFileTooLarge => '音频文件必须小于 25 MB。';
 
   @override
+  String get providerErrorInvalidAudioFile =>
+      '这个 WAV 文件为空或已经损坏，请重新录音或选择有效的源文件。';
+
+  @override
   String get providerErrorFilePickerPermission =>
       '应用没有打开所选文件的权限。请重新构建 macOS 应用后重试。';
 
@@ -712,6 +805,91 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get providerErrorRequestFailed => 'API 请求失败，请检查配置和网络。';
+
+  @override
+  String get webDavTitle => 'WebDAV 配置同步';
+
+  @override
+  String get webDavSettingsSubtitle => '同步供应商配置和加密的 API Key';
+
+  @override
+  String get webDavServerUrl => '服务器地址';
+
+  @override
+  String get webDavUsername => '用户名';
+
+  @override
+  String get webDavPassword => '密码';
+
+  @override
+  String get webDavPasswordEncryptionHint => '同时用于加密远端文件中的 API Key。';
+
+  @override
+  String get webDavPasswordRequired => '请输入 WebDAV 密码，用于认证和配置加密。';
+
+  @override
+  String get webDavRemotePath => '远端目录';
+
+  @override
+  String get webDavSyncScopeTitle => '同步范围';
+
+  @override
+  String get webDavSyncScopeBody =>
+      '包含文字 AI、语音转写供应商配置及 API Key；不包含录音、记录、转写结果、任务、总结和 AI 对话。';
+
+  @override
+  String get webDavRemoteNotFound => '远端还没有配置文件。';
+
+  @override
+  String webDavRemoteUpdatedAt(String time) {
+    return '远端配置更新时间：$time';
+  }
+
+  @override
+  String get webDavTestConnection => '测试连接';
+
+  @override
+  String get webDavTestSucceeded => 'WebDAV 连接成功';
+
+  @override
+  String get webDavUpload => '上传本机配置';
+
+  @override
+  String get webDavUploadSucceeded => '配置已上传';
+
+  @override
+  String get webDavDownload => '下载远端配置';
+
+  @override
+  String get webDavDownloadConfirmTitle => '覆盖本机供应商配置？';
+
+  @override
+  String get webDavDownloadConfirmBody =>
+      '本机供应商设置和 API Key 将被加密的远端配置覆盖。录音、记录和 AI 对话不会受影响。';
+
+  @override
+  String get webDavDownloadAction => '下载并覆盖';
+
+  @override
+  String get webDavDownloadSucceeded => '远端配置已应用';
+
+  @override
+  String get webDavCancel => '取消';
+
+  @override
+  String get webDavInvalidUrl => '请输入有效的 HTTP 或 HTTPS WebDAV 地址。';
+
+  @override
+  String get webDavRemoteMissing => '远端配置文件尚不存在。';
+
+  @override
+  String webDavRequestFailed(String detail) {
+    return 'WebDAV 请求失败：$detail';
+  }
+
+  @override
+  String get webDavDecryptOrFormatFailed =>
+      '无法解密远端文件，或文件不是有效的 SekuxNote 配置。请检查 WebDAV 密码。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1047,6 +1225,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get providerErrorAudioFileTooLarge => '音訊檔案必須小於 25 MB。';
 
   @override
+  String get providerErrorInvalidAudioFile =>
+      '這個 WAV 檔案為空或已經損壞，請重新錄音或選擇有效的來源檔案。';
+
+  @override
   String get providerErrorFilePickerPermission =>
       '應用程式沒有開啟所選檔案的權限。請重新建置 macOS 應用程式後再試。';
 
@@ -1067,4 +1249,89 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get providerErrorRequestFailed => 'API 請求失敗，請檢查設定與網路。';
+
+  @override
+  String get webDavTitle => 'WebDAV 設定同步';
+
+  @override
+  String get webDavSettingsSubtitle => '同步供應商設定和加密的 API Key';
+
+  @override
+  String get webDavServerUrl => '伺服器地址';
+
+  @override
+  String get webDavUsername => '使用者名稱';
+
+  @override
+  String get webDavPassword => '密碼';
+
+  @override
+  String get webDavPasswordEncryptionHint => '同時用於加密遠端檔案中的 API Key。';
+
+  @override
+  String get webDavPasswordRequired => '請輸入 WebDAV 密碼，用於認證和設定加密。';
+
+  @override
+  String get webDavRemotePath => '遠端目錄';
+
+  @override
+  String get webDavSyncScopeTitle => '同步範圍';
+
+  @override
+  String get webDavSyncScopeBody =>
+      '包含文字 AI、語音轉寫供應商設定及 API Key；不包含錄音、記錄、轉寫結果、任務、摘要和 AI 對話。';
+
+  @override
+  String get webDavRemoteNotFound => '遠端還沒有設定檔。';
+
+  @override
+  String webDavRemoteUpdatedAt(String time) {
+    return '遠端設定更新時間：$time';
+  }
+
+  @override
+  String get webDavTestConnection => '測試連線';
+
+  @override
+  String get webDavTestSucceeded => 'WebDAV 連線成功';
+
+  @override
+  String get webDavUpload => '上傳本機設定';
+
+  @override
+  String get webDavUploadSucceeded => '設定已上傳';
+
+  @override
+  String get webDavDownload => '下載遠端設定';
+
+  @override
+  String get webDavDownloadConfirmTitle => '覆蓋本機供應商設定？';
+
+  @override
+  String get webDavDownloadConfirmBody =>
+      '本機供應商設定和 API Key 將被加密的遠端設定覆蓋。錄音、記錄和 AI 對話不會受影響。';
+
+  @override
+  String get webDavDownloadAction => '下載並覆蓋';
+
+  @override
+  String get webDavDownloadSucceeded => '遠端設定已套用';
+
+  @override
+  String get webDavCancel => '取消';
+
+  @override
+  String get webDavInvalidUrl => '請輸入有效的 HTTP 或 HTTPS WebDAV 地址。';
+
+  @override
+  String get webDavRemoteMissing => '遠端設定檔尚不存在。';
+
+  @override
+  String webDavRequestFailed(String detail) {
+    return 'WebDAV 請求失敗：$detail';
+  }
+
+  @override
+  String get webDavDecryptOrFormatFailed =>
+      '無法解密遠端檔案，或檔案不是有效的 SekuxNote 設定。請檢查 WebDAV 密碼。';
 }

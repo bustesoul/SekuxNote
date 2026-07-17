@@ -22,6 +22,30 @@ class TranscriptionProvidersPage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  IconButton(
+                    key: const Key('transcription_provider_picker_back'),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '添加转写供应商',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.api_outlined),
               title: const Text('OpenAI 兼容'),
