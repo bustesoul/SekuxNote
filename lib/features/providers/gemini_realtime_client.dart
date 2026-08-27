@@ -279,8 +279,8 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
   }
 
   void _onDone() {
-    if (_streamEndSent) {
-      if (_finished?.isCompleted == false) _finished!.complete();
+    if (_streamEndSent && _receivedFinalAfterStreamEnd) {
+      _completeFinished();
       return;
     }
     _failDisconnect(const ProviderRequestException('realtimeConnectionLost'));

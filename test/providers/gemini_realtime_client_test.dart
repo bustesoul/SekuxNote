@@ -136,6 +136,50 @@ void main() {
       'late sentence',
     ]);
   });
+
+  test('socket close after audioStreamEnd without a final is a lost connection', () async {
+    final harness = _GeminiSocketHarness();
+    final client = GeminiRealtimeClient(
+      config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
+      apiKey: 'gemini-test-key',
+      channelFactory: harness.factory,
+      finishQuiet: Duration.zero,
+      finishDeadline: const Duration(seconds: 1),
+    );
+    addTearDown(client.dispose);
+
+    final errors = <Object>[];
+    client.events.listen((_) {}, onError: errors.add);
+
+    await harness.connect(client);
+    final finishing = client.finish();
+    await harness.waitForClientMessage((body) {
+      final input = body['realtimeInput'];
+      return input is Map && input['audioStreamEnd'] == true;
+    });
+    await harness.incoming.close();
+
+    await expectLater(
+      finishing,
+      throwsA(
+        isA<ProviderRequestException>().having(
+          (error) => error.message,
+          'message',
+          'realtimeConnectionLost',
+        ),
+      ),
+    );
+    expect(
+      errors,
+      contains(
+        isA<ProviderRequestException>().having(
+          (error) => error.message,
+          'message',
+          'realtimeConnectionLost',
+        ),
+      ),
+    );
+  });
 }
 
 class _GeminiSocketHarness {
