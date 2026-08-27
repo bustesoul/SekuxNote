@@ -69,6 +69,7 @@ void main() {
           chunksTotal: 6,
           chunksCompleted: 2,
           remoteTaskId: 'remote-task-1',
+          smartFormatting: true,
           errorMessage: 'requestFailed',
         ),
       );
@@ -105,6 +106,7 @@ void main() {
       expect(tasks.single.chunksTotal, 6);
       expect(tasks.single.errorMessage, 'requestFailed');
       expect(tasks.single.remoteTaskId, 'remote-task-1');
+      expect(tasks.single.smartFormatting, isTrue);
       final chunks = await reopened.listChunks('task-1');
       expect(chunks, hasLength(2));
       expect(chunks.last.attempts, 4);

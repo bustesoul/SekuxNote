@@ -19,12 +19,18 @@ class ProviderRequestException implements Exception {
 ///
 /// The original class name remains to avoid an unrelated public API rename.
 class OpenAiApiClient {
-  OpenAiApiClient({http.Client? client}) : _client = client ?? http.Client();
+  OpenAiApiClient({
+    http.Client? client,
+    int geminiInlineLimitBytes = _defaultGeminiInlineLimitBytes,
+  }) : _client = client ?? http.Client(),
+       _geminiInlineLimitBytes = geminiInlineLimitBytes;
 
   final http.Client _client;
+  final int _geminiInlineLimitBytes;
 
   static const _transcriptionTimeout = Duration(minutes: 10);
   static const _dashScopeApi = 'https://dashscope.aliyuncs.com';
+  static const _defaultGeminiInlineLimitBytes = 12 * 1024 * 1024;
 
   Future<ApiOperationResult> testText({
     required TextProviderConfig config,
@@ -382,7 +388,6 @@ class OpenAiApiClient {
   ///
   /// Files under 12 MB go inline as base64. Larger files use the Files API
   /// first, then `interactions.create` with the returned URI.
-  static const _geminiInlineLimitBytes = 12 * 1024 * 1024;
 
   Future<TranscriptionResult> _transcribeGemini({
     required TranscriptionProviderConfig config,
@@ -394,7 +399,7 @@ class OpenAiApiClient {
       'gemini_transcription.start',
       details: {'model': config.batchModel, 'fileBytes': file.sizeBytes},
     );
-    final mimeType = _geminiMimeType(file.name);
+    final mimeType = geminiMimeType(file.name);
     final Map<String, Object?> audioInput;
     if (file.sizeBytes <= _geminiInlineLimitBytes) {
       audioInput = {
@@ -479,13 +484,12 @@ class OpenAiApiClient {
       throw const ProviderRequestException('invalidProviderResponse');
     }
     final uploaded = await _client
-        .put(
+        .post(
           Uri.parse(uploadUrl),
           headers: {
             'Content-Length': '${file.sizeBytes}',
             'X-Goog-Upload-Offset': '0',
             'X-Goog-Upload-Command': 'upload, finalize',
-            'Content-Type': mimeType,
           },
           body: file.bytes,
         )
@@ -574,21 +578,6 @@ class OpenAiApiClient {
       throw const ProviderRequestException('invalidBaseUrl');
     }
     return uri;
-  }
-
-  String _geminiMimeType(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-    return switch (extension) {
-      'wav' => 'audio/wav',
-      'mp3' => 'audio/mp3',
-      'mpeg' => 'audio/mpeg',
-      'm4a' => 'audio/mp4',
-      'aac' => 'audio/aac',
-      'flac' => 'audio/flac',
-      'ogg' => 'audio/ogg',
-      'webm' => 'audio/webm',
-      _ => 'application/octet-stream',
-    };
   }
 
   Future<TranscriptionResult> _transcribeDashScopeFunAsr({
@@ -1135,30 +1124,85 @@ class OpenAiApiClient {
 List<String> geminiLanguageCodes(String language) {
   final value = language.trim();
   if (value.isEmpty || value.toLowerCase() == 'auto') return const [];
-  if (value.contains('-')) return [value];
   const mapped = {
-    'zh': 'zh-CN',
+    'zh': 'cmn-Hans-CN',
+    'zh-cn': 'cmn-Hans-CN',
+    'zh-hans': 'cmn-Hans-CN',
+    'zh-hans-cn': 'cmn-Hans-CN',
+    'cmn': 'cmn-Hans-CN',
+    'cmn-hans-cn': 'cmn-Hans-CN',
+    'zh-hk': 'yue-Hant-HK',
+    'yue': 'yue-Hant-HK',
+    'yue-hant-hk': 'yue-Hant-HK',
     'en': 'en-US',
+    'en-us': 'en-US',
+    'en-gb': 'en-GB',
+    'en-in': 'en-IN',
     'ja': 'ja-JP',
+    'ja-jp': 'ja-JP',
     'ko': 'ko-KR',
+    'ko-kr': 'ko-KR',
     'fr': 'fr-FR',
+    'fr-fr': 'fr-FR',
     'de': 'de-DE',
-    'es': 'es-ES',
+    'de-de': 'de-DE',
+    'es': 'es-US',
+    'es-us': 'es-US',
+    'es-419': 'es-419',
     'pt': 'pt-BR',
+    'pt-br': 'pt-BR',
+    'pt-pt': 'pt-PT',
     'it': 'it-IT',
+    'it-it': 'it-IT',
     'ru': 'ru-RU',
+    'ru-ru': 'ru-RU',
     'ar': 'ar-EG',
+    'ar-eg': 'ar-EG',
     'hi': 'hi-IN',
+    'hi-in': 'hi-IN',
     'th': 'th-TH',
+    'th-th': 'th-TH',
     'vi': 'vi-VN',
+    'vi-vn': 'vi-VN',
     'id': 'id-ID',
+    'id-id': 'id-ID',
     'ms': 'ms-MY',
+    'ms-my': 'ms-MY',
     'tr': 'tr-TR',
+    'tr-tr': 'tr-TR',
     'nl': 'nl-NL',
+    'nl-nl': 'nl-NL',
     'pl': 'pl-PL',
+    'pl-pl': 'pl-PL',
     'sv': 'sv-SE',
+    'sv-se': 'sv-SE',
   };
-  return [mapped[value.toLowerCase()] ?? value];
+  final canonical = mapped[value.toLowerCase()];
+  if (canonical != null) return [canonical];
+  return [value];
+}
+
+bool isGeminiLanguageInput(String language) {
+  final text = language.trim();
+  if (text.isEmpty) return false;
+  if (text.toLowerCase() == 'auto') return true;
+  if (RegExp(r'^[A-Za-z]{2}$').hasMatch(text)) return true;
+  return RegExp(r'^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})+$').hasMatch(text);
+}
+
+String geminiMimeType(String fileName) {
+  final extension = fileName.split('.').last.toLowerCase();
+  return switch (extension) {
+    'wav' => 'audio/wav',
+    'mp3' => 'audio/mp3',
+    'mpeg' => 'audio/mpeg',
+    'm4a' => 'audio/m4a',
+    'aac' => 'audio/aac',
+    'flac' => 'audio/flac',
+    'ogg' => 'audio/ogg',
+    'webm' => 'audio/webm',
+    _ => 'application/octet-stream',
+  };
 }
 
 Map<String, Object?> geminiTranscriptionConfig(
@@ -1181,8 +1225,10 @@ Map<String, Object?> geminiTranscriptionConfig(
     final mode = <String, Object?>{'type': 'verbatim'};
     if (options.diarizationEnabled) {
       mode['diarization_mode'] = 'speaker';
+      // Word timestamps are required to recover speaker labels from word_info,
+      // and they share Gemini's 30-minute limit with diarization.
+      mode['timestamp_granularities'] = ['word'];
     }
-    mode['timestamp_granularities'] = ['word'];
     config['mode'] = mode;
   }
   return config;

@@ -99,14 +99,16 @@ class _TranscriptionWorkbenchPageState
   Future<void> _confirmAndTranscribe() async {
     final file = _file;
     if (file == null) return;
-    final language = _languageController.text.trim().toLowerCase();
+    final language = _isGemini
+        ? _languageController.text.trim()
+        : _languageController.text.trim().toLowerCase();
     final languageOk = _isGemini
-        ? RegExp(r'^(auto|[a-z]{2})$').hasMatch(language)
+        ? isGeminiLanguageInput(language)
         : RegExp(r'^[a-z]{2}$').hasMatch(language);
     if (!languageOk) {
       _showError(
         _isGemini
-            ? '使用 auto，或 ISO 639-1 代码（zh / en）。'
+            ? '使用 auto、ISO 639-1（zh / en），或官方 BCP-47（如 cmn-Hans-CN）。'
             : AppLocalizations.of(context).providerTranscriptionLanguageHint,
       );
       return;
@@ -286,7 +288,7 @@ class _TranscriptionWorkbenchPageState
                               _fileMode == TranscriptionFileMode.fast
                           ? 'Flash 快转自动识别语言；该值仅用于异步文件精转。'
                           : _isGemini
-                          ? 'auto 自动识别；也可填 zh 或 en。'
+                          ? 'auto 自动识别；也可填 zh、en，或官方 BCP-47 如 cmn-Hans-CN。'
                           : l10n.providerTranscriptionLanguageHint,
                     ),
                   ),
@@ -369,7 +371,7 @@ class _TranscriptionWorkbenchPageState
                                 setState(() => _diarizationEnabled = value),
                       title: const Text('说话人分离'),
                       subtitle: const Text(
-                        'Verbatim 模式输出 spk_1…；3 人以上为实验能力。',
+                        'Verbatim 输出 spk_1…。开启后最长 30 分钟；关闭后最长约 1 小时。',
                       ),
                     ),
                   ],

@@ -10,7 +10,6 @@ import 'gemini_realtime_client.dart';
 import 'openai_api_client.dart';
 import 'provider_models.dart';
 import 'provider_storage.dart';
-import 'realtime_transcription_client.dart';
 import 'task_audio_store.dart';
 
 class ProviderController extends ChangeNotifier {
@@ -544,6 +543,7 @@ class ProviderController extends ChangeNotifier {
           : config.language,
       diarizationEnabled: diarizationEnabled,
       speakerCount: speakerCount,
+      smartFormatting: smartFormatting,
     );
     await _taskStore.create(task);
     notifyListeners();
@@ -555,7 +555,6 @@ class ProviderController extends ChangeNotifier {
         file,
         onProgress: onProgress,
         onPartialText: onPartialText,
-        smartFormatting: smartFormatting,
       );
     } catch (error) {
       return _updateTask(
@@ -627,7 +626,6 @@ class ProviderController extends ChangeNotifier {
     SelectedAudioFile source, {
     void Function({required int total, required int completed})? onProgress,
     void Function(String text)? onPartialText,
-    bool smartFormatting = false,
   }) async {
     if (source.name.toLowerCase().endsWith('.wav') &&
         !WavAudioFile.validateBytes(source.bytes).isValid) {
@@ -707,7 +705,6 @@ class ProviderController extends ChangeNotifier {
             file: audioChunks[chunk.index],
             config: config,
             apiKey: key,
-            smartFormatting: smartFormatting,
             onProgress: onProgress,
             onPartialText: onPartialText,
             onResult: (result) {
@@ -800,7 +797,6 @@ class ProviderController extends ChangeNotifier {
     required SelectedAudioFile file,
     required TranscriptionProviderConfig config,
     required String apiKey,
-    bool smartFormatting = false,
     void Function({required int total, required int completed})? onProgress,
     void Function(TranscriptionResult result)? onResult,
     void Function(String text)? onPartialText,
@@ -828,7 +824,7 @@ class ProviderController extends ChangeNotifier {
             language: task.language,
             diarizationEnabled: task.diarizationEnabled,
             speakerCount: task.speakerCount,
-            smartFormatting: smartFormatting,
+            smartFormatting: task.smartFormatting,
           ),
           onPartialText: (text) {
             onPartialText?.call(text);

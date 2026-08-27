@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../openai_api_client.dart';
 import '../provider_controller.dart';
 import '../provider_error_message.dart';
 import '../provider_models.dart';
@@ -157,7 +158,9 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
           batchModel: _modelController.text,
           fastFileModel: _isDashScope ? _fastFileModelController.text : null,
           realtimeModel: _realtimeModelController.text,
-          language: _languageController.text.trim().toLowerCase(),
+          language: _isGemini
+              ? _languageController.text.trim()
+              : _languageController.text.trim().toLowerCase(),
           chunkDurationSeconds: _isDashScope || _isGemini
               ? (_isGemini ? 1800 : 60)
               : int.parse(_chunkDurationController!.text),
@@ -518,15 +521,15 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                         helperText: _isDashScope
                             ? '异步文件精转使用该语言提示；Flash 快转自动识别语言。'
                             : _isGemini
-                            ? 'ISO 639-1 如 zh、en；auto 为自动识别 85+ 语言。'
+                            ? 'auto 自动识别；也可填 zh / en，或官方 BCP-47（如 cmn-Hans-CN）。'
                             : l10n.providerTranscriptionLanguageHint,
                       ),
                       validator: (value) {
                         final text = value?.trim() ?? '';
                         if (_isGemini) {
-                          return RegExp(r'^(auto|[a-z]{2})$').hasMatch(text)
+                          return isGeminiLanguageInput(text)
                               ? null
-                              : '使用 auto，或 ISO 639-1 代码（zh / en）。';
+                              : '使用 auto、ISO 639-1（zh / en），或官方 BCP-47（如 cmn-Hans-CN）。';
                         }
                         return RegExp(r'^[a-z]{2}$').hasMatch(text)
                             ? null

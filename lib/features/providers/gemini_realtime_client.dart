@@ -32,6 +32,7 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
   Completer<void>? _finished;
   var _sentenceId = 0;
   var _closed = false;
+  var _streamEndSent = false;
 
   @override
   Stream<RealtimeTranscriptEvent> get events => _events.stream;
@@ -45,6 +46,7 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     _started = Completer<void>();
     _finished = Completer<void>();
     _closed = false;
+    _streamEndSent = false;
     final channel = _channelFactory(websocketUri(apiKey));
     _channel = channel;
     _subscription = channel.stream.listen(
@@ -87,12 +89,15 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
   Future<void> finish() async {
     final channel = _channel;
     if (channel == null) return;
+    _streamEndSent = true;
     try {
       channel.sink.add(
         jsonEncode({
           'realtimeInput': {'audioStreamEnd': true},
         }),
       );
+      // inputTranscription is delivered independently of turnComplete /
+      // usageMetadata, so wait for the socket to close after audioStreamEnd.
       await _finished?.future.timeout(const Duration(seconds: 8));
     } on TimeoutException {
       // Local recording must complete even if Gemini is slow to finalize.
@@ -204,13 +209,6 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
       );
       _sentenceId += 1;
     }
-
-    if (serverContent['turnComplete'] == true ||
-        serverContent['turn_complete'] == true ||
-        body['usageMetadata'] != null ||
-        body['usage_metadata'] != null) {
-      if (_finished?.isCompleted == false) _finished!.complete();
-    }
   }
 
   void _onError(Object error, StackTrace stackTrace) {
@@ -228,6 +226,18 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
       _started!.completeError(
         const ProviderRequestException('realtimeConnectionLost'),
       );
+    }
+    if (!_streamEndSent) {
+      final exception = const ProviderRequestException(
+        'realtimeConnectionLost',
+      );
+      if (_finished?.isCompleted == false) {
+        _finished!.completeError(exception);
+      }
+      if (!_events.isClosed) {
+        _events.addError(exception);
+      }
+      return;
     }
     if (_finished?.isCompleted == false) _finished!.complete();
   }

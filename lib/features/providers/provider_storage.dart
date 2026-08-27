@@ -49,7 +49,7 @@ class SqliteProviderStore
     final database = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 8,
         onCreate: (database, _) async {
           await _createProviderTables(database);
           await _createTaskTable(database);
@@ -94,6 +94,11 @@ class SqliteProviderStore
           if (oldVersion < 7) {
             await database.execute(
               'ALTER TABLE transcription_tasks ADD COLUMN remote_task_id TEXT',
+            );
+          }
+          if (oldVersion < 8) {
+            await database.execute(
+              'ALTER TABLE transcription_tasks ADD COLUMN smart_formatting INTEGER NOT NULL DEFAULT 0',
             );
           }
         },
@@ -312,6 +317,7 @@ class SqliteProviderStore
       "task_language TEXT NOT NULL DEFAULT 'zh', "
       'diarization_enabled INTEGER NOT NULL DEFAULT 0, '
       'speaker_count INTEGER, '
+      'smart_formatting INTEGER NOT NULL DEFAULT 0, '
       'source_path TEXT, '
       'remote_task_id TEXT, '
       'transcript TEXT, '
@@ -348,6 +354,7 @@ class SqliteProviderStore
     'task_language': task.language,
     'diarization_enabled': task.diarizationEnabled ? 1 : 0,
     'speaker_count': task.speakerCount,
+    'smart_formatting': task.smartFormatting ? 1 : 0,
     'source_path': task.sourcePath,
     'remote_task_id': task.remoteTaskId,
     'transcript': task.transcript,
@@ -381,6 +388,7 @@ class SqliteProviderStore
       language: row['task_language'] as String? ?? 'zh',
       diarizationEnabled: (row['diarization_enabled'] as int? ?? 0) == 1,
       speakerCount: row['speaker_count'] as int?,
+      smartFormatting: (row['smart_formatting'] as int? ?? 0) == 1,
       sourcePath: row['source_path'] as String?,
       remoteTaskId: row['remote_task_id'] as String?,
       transcript: row['transcript'] as String?,

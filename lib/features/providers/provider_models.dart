@@ -85,6 +85,7 @@ class TranscriptionTask {
     this.language = 'zh',
     this.diarizationEnabled = false,
     this.speakerCount,
+    this.smartFormatting = false,
     this.sourcePath,
     this.remoteTaskId,
     this.transcript,
@@ -106,6 +107,7 @@ class TranscriptionTask {
   final String language;
   final bool diarizationEnabled;
   final int? speakerCount;
+  final bool smartFormatting;
   final String? sourcePath;
   final String? remoteTaskId;
   final String? transcript;
@@ -128,6 +130,7 @@ class TranscriptionTask {
     String? language,
     bool? diarizationEnabled,
     int? speakerCount,
+    bool? smartFormatting,
     List<TranscriptionSegment>? segments,
     bool clearTranscript = false,
     bool clearErrorMessage = false,
@@ -147,6 +150,7 @@ class TranscriptionTask {
       language: language ?? this.language,
       diarizationEnabled: diarizationEnabled ?? this.diarizationEnabled,
       speakerCount: speakerCount ?? this.speakerCount,
+      smartFormatting: smartFormatting ?? this.smartFormatting,
       sourcePath: sourcePath ?? this.sourcePath,
       remoteTaskId: remoteTaskId ?? this.remoteTaskId,
       transcript: clearTranscript ? null : transcript ?? this.transcript,
