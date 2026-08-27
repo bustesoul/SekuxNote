@@ -13,7 +13,7 @@ SekuxNote 是一款本地优先的 AI 语音记录与会议整理应用。它将
 - Android 使用麦克风前台服务和持续通知；iOS 声明音频后台模式。
 - 录音过程中显示实时音量反馈。
 - 每条录音独立保存音频和元数据；应用异常退出后会检查并尝试恢复未完成的 PCM/WAV 文件。
-- 可选接入阿里百炼 `fun-asr-realtime`，在录音时生成实时临时稿。实时转写中断不会停止本地录音。
+- 可选接入阿里百炼 `fun-asr-realtime` 或 Gemini `gemini-3.5-transcribe-live`，在录音时生成实时临时稿。实时转写中断不会停止本地录音。
 
 ### 音频文件转写
 
@@ -23,6 +23,9 @@ SekuxNote 是一款本地优先的 AI 语音记录与会议整理应用。它将
   - `fun-asr`：异步文件精转；
   - `fun-asr-flash-2026-06-15`：短文件流式快速转写；
   - `fun-asr-realtime`：录音实时转写。
+- 支持 Google **Gemini 3.5 Transcribe**：
+  - `gemini-3.5-transcribe`：文件精转（Interactions API），自动语言识别、说话人分离、词级时间戳、Smart 转写；
+  - `gemini-3.5-transcribe-live`：录音实时转写（Live API / WebSocket），16 kHz PCM。
 - 根据供应商能力保存时间戳、说话人和结构化句段。
 - 小文件直接上传；需要分片时可配置分片时长和并发数。
 - 转写任务、分片进度、结果和错误均持久化，支持停止、重试未完成分片和删除终态任务。
@@ -98,7 +101,7 @@ flutter run -d <device-id>
 
 1. 文字 AI 供应商，用于 AI 对话和会议总结；
 2. 语音转写供应商，用于文件转写；
-3. 如需边录边转，添加并设为默认的阿里百炼原生 ASR 配置。
+3. 如需边录边转，添加并设为默认的阿里百炼原生 ASR，或 Gemini 3.5 Transcribe（`gemini-3.5-transcribe-live`）。
 
 ## 开发与验证
 
@@ -147,7 +150,7 @@ test/                          单元测试和组件测试
 ## 当前限制
 
 - 项目仍处于开发阶段，尚未提供应用商店发布包或稳定性承诺。
-- 录音实时转写目前只接入阿里百炼 `fun-asr-realtime`；OpenAI 兼容配置主要用于文件转写。
+- 录音实时转写目前接入阿里百炼 `fun-asr-realtime` 与 Gemini `gemini-3.5-transcribe-live`；OpenAI 兼容配置主要用于文件转写。
 - 录音结束后不会自动生成会后最终稿；当前可使用实时临时稿生成总结，或单独将音频文件提交到文件转写工作台。
 - 尚未实现应用内音频播放、录音导出和录音重命名。
 - WebDAV 当前只同步供应商配置，不同步录音、转写任务、AI 对话或总结。

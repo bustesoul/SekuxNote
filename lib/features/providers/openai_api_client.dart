@@ -196,6 +196,12 @@ class OpenAiApiClient {
                 options: requestOptions,
                 onRemoteTaskCreated: onRemoteTaskCreated,
               ),
+      TranscriptionProviderType.geminiTranscribe => _transcribeGemini(
+        config: config,
+        apiKey: apiKey,
+        file: file,
+        options: requestOptions,
+      ),
     };
   }
 
@@ -370,6 +376,219 @@ class OpenAiApiClient {
       usage: _usage(body),
       segments: _openAiSegments(body),
     );
+  }
+
+  /// Gemini 3.5 Transcribe via the Interactions API.
+  ///
+  /// Files under 12 MB go inline as base64. Larger files use the Files API
+  /// first, then `interactions.create` with the returned URI.
+  static const _geminiInlineLimitBytes = 12 * 1024 * 1024;
+
+  Future<TranscriptionResult> _transcribeGemini({
+    required TranscriptionProviderConfig config,
+    required String apiKey,
+    required SelectedAudioFile file,
+    required TranscriptionRequestOptions options,
+  }) async {
+    await ProviderDebugLog.record(
+      'gemini_transcription.start',
+      details: {'model': config.batchModel, 'fileBytes': file.sizeBytes},
+    );
+    final mimeType = _geminiMimeType(file.name);
+    final Map<String, Object?> audioInput;
+    if (file.sizeBytes <= _geminiInlineLimitBytes) {
+      audioInput = {
+        'type': 'audio',
+        'data': base64Encode(file.bytes),
+        'mime_type': mimeType,
+      };
+    } else {
+      final uploaded = await _uploadGeminiFile(
+        config: config,
+        apiKey: apiKey,
+        file: file,
+        mimeType: mimeType,
+      );
+      audioInput = {
+        'type': 'audio',
+        'uri': uploaded['uri'],
+        'mime_type': uploaded['mime_type'] ?? mimeType,
+      };
+    }
+    final response = await _sendGeminiJson(
+      uri: _geminiEndpoint(config.baseUrl, 'v1beta/interactions'),
+      apiKey: apiKey,
+      body: {
+        'model': config.batchModel,
+        'input': [audioInput],
+        'generation_config': {
+          'transcription_config': geminiTranscriptionConfig(options),
+        },
+      },
+    );
+    final body = _decodeJson(response.body);
+    final parsed = parseGeminiTranscription(body);
+    if (parsed.text.trim().isEmpty && parsed.segments.isEmpty) {
+      throw const ProviderRequestException('invalidProviderResponse');
+    }
+    return TranscriptionResult(
+      fileName: file.name,
+      providerName: config.name,
+      model: config.batchModel,
+      text: parsed.text,
+      usage: _usage(body),
+      segments: parsed.segments,
+    );
+  }
+
+  Future<Map<String, Object?>> _uploadGeminiFile({
+    required TranscriptionProviderConfig config,
+    required String apiKey,
+    required SelectedAudioFile file,
+    required String mimeType,
+  }) async {
+    final start = await _client
+        .post(
+          _geminiEndpoint(config.baseUrl, 'upload/v1beta/files'),
+          headers: {
+            'x-goog-api-key': apiKey,
+            'X-Goog-Upload-Protocol': 'resumable',
+            'X-Goog-Upload-Command': 'start',
+            'X-Goog-Upload-Header-Content-Length': '${file.sizeBytes}',
+            'X-Goog-Upload-Header-Content-Type': mimeType,
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'file': {'display_name': file.name},
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+    if (start.statusCode < 200 || start.statusCode >= 300) {
+      await ProviderDebugLog.record(
+        'provider_request.failure',
+        details: {
+          'stage': 'gemini.upload_start',
+          'statusCode': start.statusCode,
+          'error': _responseDiagnostic(start.body),
+        },
+      );
+      _ensureStatusCode(start.statusCode);
+    }
+    final uploadUrl = start.headers['x-goog-upload-url'];
+    if (uploadUrl == null || uploadUrl.isEmpty) {
+      throw const ProviderRequestException('invalidProviderResponse');
+    }
+    final uploaded = await _client
+        .put(
+          Uri.parse(uploadUrl),
+          headers: {
+            'Content-Length': '${file.sizeBytes}',
+            'X-Goog-Upload-Offset': '0',
+            'X-Goog-Upload-Command': 'upload, finalize',
+            'Content-Type': mimeType,
+          },
+          body: file.bytes,
+        )
+        .timeout(_transcriptionTimeout);
+    if (uploaded.statusCode < 200 || uploaded.statusCode >= 300) {
+      await ProviderDebugLog.record(
+        'provider_request.failure',
+        details: {
+          'stage': 'gemini.upload_finalize',
+          'statusCode': uploaded.statusCode,
+          'error': _responseDiagnostic(uploaded.body),
+        },
+      );
+      _ensureStatusCode(uploaded.statusCode);
+    }
+    var fileInfo = _map(_decodeJson(uploaded.body)['file']);
+    if (fileInfo.isEmpty) fileInfo = _decodeJson(uploaded.body);
+    final name = fileInfo['name'] as String?;
+    var state = (fileInfo['state'] as String? ?? '').toUpperCase();
+    var uri = fileInfo['uri'] as String?;
+    final deadline = DateTime.now().add(const Duration(seconds: 60));
+    while ((uri == null || uri.isEmpty || state == 'PROCESSING') &&
+        name != null &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      final polled = await _client
+          .get(
+            _geminiEndpoint(config.baseUrl, 'v1beta/$name'),
+            headers: {'x-goog-api-key': apiKey},
+          )
+          .timeout(const Duration(seconds: 15));
+      _ensureSuccess(polled);
+      final body = _decodeJson(polled.body);
+      state = (body['state'] as String? ?? '').toUpperCase();
+      uri = body['uri'] as String? ?? uri;
+      fileInfo = body;
+    }
+    if (uri == null || uri.isEmpty) {
+      throw const ProviderRequestException('invalidProviderResponse');
+    }
+    return {
+      'uri': uri,
+      'mime_type': fileInfo['mimeType'] ?? fileInfo['mime_type'] ?? mimeType,
+    };
+  }
+
+  Future<http.Response> _sendGeminiJson({
+    required Uri uri,
+    required String apiKey,
+    required Map<String, Object?> body,
+  }) async {
+    final response = await _client
+        .post(
+          uri,
+          headers: {
+            'x-goog-api-key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(_transcriptionTimeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      await ProviderDebugLog.record(
+        'provider_request.failure',
+        details: {
+          'stage': 'gemini.interactions',
+          'host': uri.host,
+          'statusCode': response.statusCode,
+          'error': _responseDiagnostic(response.body),
+        },
+      );
+    }
+    _ensureSuccess(response);
+    return response;
+  }
+
+  Uri _geminiEndpoint(String baseUrl, String path) {
+    final raw = baseUrl.trim().isEmpty
+        ? 'https://generativelanguage.googleapis.com'
+        : baseUrl.trim();
+    final normalized = raw
+        .replaceFirst(RegExp(r'/+$'), '')
+        .replaceFirst(RegExp(r'/v1beta$'), '');
+    final uri = Uri.tryParse('$normalized/$path');
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw const ProviderRequestException('invalidBaseUrl');
+    }
+    return uri;
+  }
+
+  String _geminiMimeType(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    return switch (extension) {
+      'wav' => 'audio/wav',
+      'mp3' => 'audio/mp3',
+      'mpeg' => 'audio/mpeg',
+      'm4a' => 'audio/mp4',
+      'aac' => 'audio/aac',
+      'flac' => 'audio/flac',
+      'ogg' => 'audio/ogg',
+      'webm' => 'audio/webm',
+      _ => 'application/octet-stream',
+    };
   }
 
   Future<TranscriptionResult> _transcribeDashScopeFunAsr({
@@ -911,4 +1130,220 @@ class OpenAiApiClient {
   }
 
   void close() => _client.close();
+}
+
+List<String> geminiLanguageCodes(String language) {
+  final value = language.trim();
+  if (value.isEmpty || value.toLowerCase() == 'auto') return const [];
+  if (value.contains('-')) return [value];
+  const mapped = {
+    'zh': 'zh-CN',
+    'en': 'en-US',
+    'ja': 'ja-JP',
+    'ko': 'ko-KR',
+    'fr': 'fr-FR',
+    'de': 'de-DE',
+    'es': 'es-ES',
+    'pt': 'pt-BR',
+    'it': 'it-IT',
+    'ru': 'ru-RU',
+    'ar': 'ar-EG',
+    'hi': 'hi-IN',
+    'th': 'th-TH',
+    'vi': 'vi-VN',
+    'id': 'id-ID',
+    'ms': 'ms-MY',
+    'tr': 'tr-TR',
+    'nl': 'nl-NL',
+    'pl': 'pl-PL',
+    'sv': 'sv-SE',
+  };
+  return [mapped[value.toLowerCase()] ?? value];
+}
+
+Map<String, Object?> geminiTranscriptionConfig(
+  TranscriptionRequestOptions options,
+) {
+  final config = <String, Object?>{
+    'language_codes': geminiLanguageCodes(options.language),
+  };
+  if (options.customVocabulary.isNotEmpty) {
+    config['custom_vocabulary'] = options.customVocabulary
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .take(1000)
+        .toList(growable: false);
+  }
+  final useSmart = options.smartFormatting && !options.diarizationEnabled;
+  if (useSmart) {
+    config['mode'] = {'type': 'smart'};
+  } else {
+    final mode = <String, Object?>{'type': 'verbatim'};
+    if (options.diarizationEnabled) {
+      mode['diarization_mode'] = 'speaker';
+    }
+    mode['timestamp_granularities'] = ['word'];
+    config['mode'] = mode;
+  }
+  return config;
+}
+
+class GeminiTranscriptionParse {
+  const GeminiTranscriptionParse({
+    required this.text,
+    required this.segments,
+  });
+
+  final String text;
+  final List<TranscriptionSegment> segments;
+}
+
+GeminiTranscriptionParse parseGeminiTranscription(Map<String, Object?> body) {
+  final words = <_GeminiWord>[];
+  final textParts = <String>[];
+
+  void walk(Object? node) {
+    if (node is List) {
+      for (final item in node) {
+        walk(item);
+      }
+      return;
+    }
+    if (node is! Map) return;
+    final map = Map<String, Object?>.from(node);
+    final type = map['type'] as String? ?? '';
+    final text = map['text'] as String?;
+    if ((type == 'text' || type == 'output_text') &&
+        text != null &&
+        text.isNotEmpty) {
+      textParts.add(text);
+    }
+    final annotations = map['annotations'];
+    if (annotations is List) {
+      for (final annotation in annotations.whereType<Map>()) {
+        final item = Map<String, Object?>.from(annotation);
+        final annotationType = item['type'] as String? ?? '';
+        if (annotationType != 'word_info' && annotationType != 'wordInfo') {
+          continue;
+        }
+        final wordText = item['text'] as String? ?? '';
+        if (wordText.isEmpty) continue;
+        words.add(
+          _GeminiWord(
+            text: wordText,
+            speakerId: _geminiSpeakerId(
+              item['speaker'] ?? item['speaker_id'] ?? item['speakerId'],
+            ),
+            startSeconds: _geminiOffsetSeconds(
+              item['start_offset'] ?? item['startOffset'] ?? item['start'],
+            ),
+            endSeconds: _geminiOffsetSeconds(
+              item['end_offset'] ?? item['endOffset'] ?? item['end'],
+            ),
+          ),
+        );
+      }
+    }
+    for (final value in map.values) {
+      if (value is Map || value is List) walk(value);
+    }
+  }
+
+  walk(body['steps'] ?? body['output'] ?? body);
+  final outputText = body['output_text'] as String? ??
+      body['outputText'] as String? ??
+      '';
+  final text = outputText.trim().isNotEmpty
+      ? outputText
+      : textParts.join().trim();
+  if (words.isEmpty) {
+    return GeminiTranscriptionParse(
+      text: text,
+      segments: text.trim().isEmpty
+          ? const []
+          : [
+              TranscriptionSegment(
+                startSeconds: 0,
+                endSeconds: 0,
+                text: text,
+              ),
+            ],
+    );
+  }
+  return GeminiTranscriptionParse(
+    text: text.trim().isNotEmpty
+        ? text
+        : words.map((word) => word.text).join(' '),
+    segments: _geminiSegmentsFromWords(words),
+  );
+}
+
+class _GeminiWord {
+  const _GeminiWord({
+    required this.text,
+    required this.startSeconds,
+    required this.endSeconds,
+    this.speakerId,
+  });
+
+  final String text;
+  final double startSeconds;
+  final double endSeconds;
+  final int? speakerId;
+}
+
+int? _geminiSpeakerId(Object? value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  final match = RegExp(r'(\d+)').firstMatch(value.toString());
+  return match == null ? null : int.tryParse(match.group(1)!);
+}
+
+double _geminiOffsetSeconds(Object? value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  final raw = value.toString().trim().toLowerCase();
+  if (raw.endsWith('ms')) {
+    return (double.tryParse(raw.substring(0, raw.length - 2)) ?? 0) / 1000;
+  }
+  if (raw.endsWith('s')) {
+    return double.tryParse(raw.substring(0, raw.length - 1)) ?? 0;
+  }
+  return double.tryParse(raw) ?? 0;
+}
+
+List<TranscriptionSegment> _geminiSegmentsFromWords(List<_GeminiWord> words) {
+  final segments = <TranscriptionSegment>[];
+  var bucket = <_GeminiWord>[];
+
+  void flush() {
+    if (bucket.isEmpty) return;
+    segments.add(
+      TranscriptionSegment(
+        startSeconds: bucket.first.startSeconds,
+        endSeconds: bucket.last.endSeconds,
+        text: bucket.map((word) => word.text).join(' '),
+        speakerId: bucket.first.speakerId,
+        words: bucket
+            .map(
+              (word) => TranscriptionWord(
+                startSeconds: word.startSeconds,
+                endSeconds: word.endSeconds,
+                text: word.text,
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+    bucket = [];
+  }
+
+  for (final word in words) {
+    if (bucket.isNotEmpty && bucket.first.speakerId != word.speakerId) {
+      flush();
+    }
+    bucket.add(word);
+  }
+  flush();
+  return segments;
 }

@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
 import '../../app/storage/app_data_directory.dart';
-import '../providers/dashscope_realtime_client.dart';
 import '../providers/provider_controller.dart';
+import '../providers/realtime_transcription_client.dart';
 import 'recording_background_service.dart';
 import 'recording_models.dart';
 import 'wav_audio_file.dart';
@@ -29,7 +29,7 @@ class RecordingSessionController extends ChangeNotifier {
   final Map<int, RealtimeTranscriptEvent> _sentences = {};
   StreamSubscription<Uint8List>? _audioSubscription;
   StreamSubscription<RealtimeTranscriptEvent>? _realtimeSubscription;
-  DashScopeRealtimeClient? _realtimeClient;
+  RealtimeTranscriptionClient? _realtimeClient;
   _PcmStreamWriter? _writer;
   Completer<void>? _audioDone;
   RecordingEntry? _active;
@@ -304,7 +304,7 @@ class RecordingSessionController extends ChangeNotifier {
     final entry = _active;
     if (entry == null || !entry.realtimeEnabled) return;
     try {
-      final client = await _providerController.createDashScopeRealtimeClient();
+      final client = await _providerController.createRealtimeClient();
       _realtimeClient = client;
       _realtimeSubscription = client.events.listen(
         (event) {

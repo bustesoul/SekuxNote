@@ -23,6 +23,20 @@ void main() {
     expect(config.capabilities, contains(TranscriptionCapability.realtime));
   });
 
+  test('Gemini 3.5 Transcribe JSON restores dedicated models', () {
+    final config = TranscriptionProviderConfig.fromJson({
+      'id': 'gemini-1',
+      'type': 'geminiTranscribe',
+      'name': 'Gemini',
+      'batchModel': 'gemini-3.5-transcribe',
+    });
+    expect(config.type, TranscriptionProviderType.geminiTranscribe);
+    expect(config.realtimeModel, 'gemini-3.5-transcribe-live');
+    expect(config.baseUrl, 'https://generativelanguage.googleapis.com');
+    expect(config.capabilities, contains(TranscriptionCapability.diarization));
+    expect(config.capabilities, contains(TranscriptionCapability.wordTimestamps));
+  });
+
   test(
     'FR-SET SQLite provider configuration survives reopening the database',
     () async {

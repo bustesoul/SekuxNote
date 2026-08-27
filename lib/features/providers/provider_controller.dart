@@ -6,9 +6,11 @@ import 'package:flutter/foundation.dart';
 import '../recording/wav_audio_file.dart';
 import 'audio_chunker.dart';
 import 'dashscope_realtime_client.dart';
+import 'gemini_realtime_client.dart';
 import 'openai_api_client.dart';
 import 'provider_models.dart';
 import 'provider_storage.dart';
+import 'realtime_transcription_client.dart';
 import 'task_audio_store.dart';
 
 class ProviderController extends ChangeNotifier {
@@ -372,6 +374,8 @@ class ProviderController extends ChangeNotifier {
         TranscriptionProviderConfig.defaults().copyWith(name: 'OpenAI 兼容'),
       TranscriptionProviderType.dashScopeFunAsr =>
         TranscriptionProviderConfig.dashScopeDefaults(id: id),
+      TranscriptionProviderType.geminiTranscribe =>
+        TranscriptionProviderConfig.geminiDefaults(id: id),
     };
     final withId = type == TranscriptionProviderType.openAiCompatible
         ? TranscriptionProviderConfig(
@@ -464,19 +468,38 @@ class ProviderController extends ChangeNotifier {
 
   Future<List<TranscriptionTask>> listTranscriptionTasks() => _taskStore.list();
 
-  Future<DashScopeRealtimeClient> createDashScopeRealtimeClient({
+  Future<RealtimeTranscriptionClient> createRealtimeClient({
     String? providerId,
   }) async {
     final config = transcriptionProviderById(
       providerId ?? _transcriptionSettings.defaultProviderId,
     );
     if (config == null) throw const ProviderRequestException('providerMissing');
-    if (config.type != TranscriptionProviderType.dashScopeFunAsr) {
-      throw const ProviderRequestException('realtimeProviderUnsupported');
-    }
     _ensureEnabled(config.enabled);
     final key = await _requiredKey(config.credentialRef);
-    return DashScopeRealtimeClient(config: config, apiKey: key);
+    return switch (config.type) {
+      TranscriptionProviderType.dashScopeFunAsr => DashScopeRealtimeClient(
+        config: config,
+        apiKey: key,
+      ),
+      TranscriptionProviderType.geminiTranscribe => GeminiRealtimeClient(
+        config: config,
+        apiKey: key,
+      ),
+      TranscriptionProviderType.openAiCompatible =>
+        throw const ProviderRequestException('realtimeProviderUnsupported'),
+    };
+  }
+
+  @Deprecated('Use createRealtimeClient')
+  Future<DashScopeRealtimeClient> createDashScopeRealtimeClient({
+    String? providerId,
+  }) async {
+    final client = await createRealtimeClient(providerId: providerId);
+    if (client is! DashScopeRealtimeClient) {
+      throw const ProviderRequestException('realtimeProviderUnsupported');
+    }
+    return client;
   }
 
   /// Retries are additional attempts: the first request plus up to three
@@ -491,6 +514,7 @@ class ProviderController extends ChangeNotifier {
     bool diarizationEnabled = false,
     int? speakerCount,
     TranscriptionFileMode fileMode = TranscriptionFileMode.precision,
+    bool smartFormatting = false,
     void Function({required int total, required int completed})? onProgress,
     void Function(String text)? onPartialText,
   }) async {
@@ -531,6 +555,7 @@ class ProviderController extends ChangeNotifier {
         file,
         onProgress: onProgress,
         onPartialText: onPartialText,
+        smartFormatting: smartFormatting,
       );
     } catch (error) {
       return _updateTask(
@@ -602,6 +627,7 @@ class ProviderController extends ChangeNotifier {
     SelectedAudioFile source, {
     void Function({required int total, required int completed})? onProgress,
     void Function(String text)? onPartialText,
+    bool smartFormatting = false,
   }) async {
     if (source.name.toLowerCase().endsWith('.wav') &&
         !WavAudioFile.validateBytes(source.bytes).isValid) {
@@ -636,6 +662,7 @@ class ProviderController extends ChangeNotifier {
       var taskChunks = await _taskStore.listChunks(task.id);
       final audioChunks =
           config.type == TranscriptionProviderType.dashScopeFunAsr ||
+              config.type == TranscriptionProviderType.geminiTranscribe ||
               source.sizeBytes < _singleUploadLimitBytes
           ? [source]
           : await _audioChunker.split(
@@ -680,6 +707,7 @@ class ProviderController extends ChangeNotifier {
             file: audioChunks[chunk.index],
             config: config,
             apiKey: key,
+            smartFormatting: smartFormatting,
             onProgress: onProgress,
             onPartialText: onPartialText,
             onResult: (result) {
@@ -712,7 +740,8 @@ class ProviderController extends ChangeNotifier {
       await Future.wait(
         List.generate(
           min<int>(
-            config.type == TranscriptionProviderType.dashScopeFunAsr
+            config.type == TranscriptionProviderType.dashScopeFunAsr ||
+                    config.type == TranscriptionProviderType.geminiTranscribe
                 ? 1
                 : config.maxConcurrentUploads,
             runnable.length,
@@ -771,6 +800,7 @@ class ProviderController extends ChangeNotifier {
     required SelectedAudioFile file,
     required TranscriptionProviderConfig config,
     required String apiKey,
+    bool smartFormatting = false,
     void Function({required int total, required int completed})? onProgress,
     void Function(TranscriptionResult result)? onResult,
     void Function(String text)? onPartialText,
@@ -798,6 +828,7 @@ class ProviderController extends ChangeNotifier {
             language: task.language,
             diarizationEnabled: task.diarizationEnabled,
             speakerCount: task.speakerCount,
+            smartFormatting: smartFormatting,
           ),
           onPartialText: (text) {
             onPartialText?.call(text);

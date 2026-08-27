@@ -62,6 +62,9 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
   bool get _isDashScope =>
       !_isText &&
       _transcriptionConfig.type == TranscriptionProviderType.dashScopeFunAsr;
+  bool get _isGemini =>
+      !_isText &&
+      _transcriptionConfig.type == TranscriptionProviderType.geminiTranscribe;
 
   @override
   void initState() {
@@ -155,10 +158,10 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
           fastFileModel: _isDashScope ? _fastFileModelController.text : null,
           realtimeModel: _realtimeModelController.text,
           language: _languageController.text.trim().toLowerCase(),
-          chunkDurationSeconds: _isDashScope
-              ? 60
+          chunkDurationSeconds: _isDashScope || _isGemini
+              ? (_isGemini ? 1800 : 60)
               : int.parse(_chunkDurationController!.text),
-          maxConcurrentUploads: _isDashScope
+          maxConcurrentUploads: _isDashScope || _isGemini
               ? 1
               : int.parse(_concurrencyController!.text),
           dashScopeApiUrl: _isDashScope
@@ -255,58 +258,7 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                     validator: _notBlank,
                   ),
                   const SizedBox(height: 16),
-                  if (!_isDashScope) ...[
-                    TextFormField(
-                      controller: _baseUrlController,
-                      keyboardType: TextInputType.url,
-                      decoration: InputDecoration(
-                        labelText: l10n.providerBaseUrlLabel,
-                      ),
-                      validator: _validUrl,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _modelController,
-                      decoration: InputDecoration(
-                        labelText: l10n.providerModelLabel,
-                      ),
-                      validator: _notBlank,
-                    ),
-                    if (_isText) ...[
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<TextProviderProtocol>(
-                        key: const Key('text_provider_protocol'),
-                        initialValue: _textProtocol,
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'API 协议'),
-                        items: const [
-                          DropdownMenuItem(
-                            value: TextProviderProtocol.responses,
-                            child: Text('OpenAI Responses API'),
-                          ),
-                          DropdownMenuItem(
-                            value: TextProviderProtocol.chatCompletions,
-                            child: Text('OpenAI Chat Completions 兼容'),
-                          ),
-                        ],
-                        onChanged: _saving
-                            ? null
-                            : (value) => setState(
-                                () => _textProtocol =
-                                    value ?? TextProviderProtocol.responses,
-                              ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        key: const Key('text_provider_models'),
-                        controller: _modelsController,
-                        decoration: const InputDecoration(
-                          labelText: '可用模型',
-                          helperText: '使用英文逗号分隔；上面的模型为默认模型。',
-                        ),
-                      ),
-                    ],
-                  ] else ...[
+                  if (_isDashScope) ...[
                     DropdownButtonFormField<String>(
                       key: const Key('dashscope_model'),
                       initialValue:
@@ -403,8 +355,127 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                       '临时上传仅适合个人使用和验证；生产环境应改用 OSS。',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                  ] else if (_isGemini) ...[
+                    DropdownButtonFormField<String>(
+                      key: const Key('gemini_batch_model'),
+                      initialValue:
+                          _geminiBatchModels.contains(
+                            _modelController.text.trim(),
+                          )
+                          ? _modelController.text.trim()
+                          : _geminiBatchModels.first,
+                      decoration: const InputDecoration(
+                        labelText: '文件转写模型',
+                        helperText:
+                            'Interactions API · 最长约 1 小时；说话人/词级时间戳时建议 ≤ 30 分钟。',
+                      ),
+                      items: _geminiBatchModels
+                          .map(
+                            (model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _saving
+                          ? null
+                          : (model) => setState(
+                              () => _modelController.text =
+                                  model ?? _geminiBatchModels.first,
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      key: const Key('gemini_realtime_model'),
+                      initialValue:
+                          _geminiRealtimeModels.contains(
+                            _realtimeModelController.text.trim(),
+                          )
+                          ? _realtimeModelController.text.trim()
+                          : _geminiRealtimeModels.first,
+                      decoration: const InputDecoration(
+                        labelText: '录音中实时模型（Live API）',
+                        helperText:
+                            '16 kHz PCM WebSocket；单次会话最长约 10 分钟。本地录音不依赖网络。',
+                      ),
+                      items: _geminiRealtimeModels
+                          .map(
+                            (model) => DropdownMenuItem(
+                              value: model,
+                              child: Text(model),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: _saving
+                          ? null
+                          : (model) => setState(
+                              () => _realtimeModelController.text =
+                                  model ?? _geminiRealtimeModels.first,
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _baseUrlController,
+                      keyboardType: TextInputType.url,
+                      decoration: const InputDecoration(
+                        labelText: 'Gemini API Base URL',
+                        helperText: '默认 generativelanguage.googleapis.com',
+                      ),
+                      validator: _validUrl,
+                    ),
+                  ] else ...[
+                    TextFormField(
+                      controller: _baseUrlController,
+                      keyboardType: TextInputType.url,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerBaseUrlLabel,
+                      ),
+                      validator: _validUrl,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _modelController,
+                      decoration: InputDecoration(
+                        labelText: l10n.providerModelLabel,
+                      ),
+                      validator: _notBlank,
+                    ),
+                    if (_isText) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<TextProviderProtocol>(
+                        key: const Key('text_provider_protocol'),
+                        initialValue: _textProtocol,
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'API 协议'),
+                        items: const [
+                          DropdownMenuItem(
+                            value: TextProviderProtocol.responses,
+                            child: Text('OpenAI Responses API'),
+                          ),
+                          DropdownMenuItem(
+                            value: TextProviderProtocol.chatCompletions,
+                            child: Text('OpenAI Chat Completions 兼容'),
+                          ),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(
+                                () => _textProtocol =
+                                    value ?? TextProviderProtocol.responses,
+                              ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        key: const Key('text_provider_models'),
+                        controller: _modelsController,
+                        decoration: const InputDecoration(
+                          labelText: '可用模型',
+                          helperText: '使用英文逗号分隔；上面的模型为默认模型。',
+                        ),
+                      ),
+                    ],
                   ],
-                  if (!_isText && !_isDashScope) ...[
+                  if (!_isText && !_isDashScope && !_isGemini) ...[
                     const SizedBox(height: 16),
                     TextFormField(
                       key: const Key('provider_realtime_model'),
@@ -446,12 +517,21 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
                         labelText: l10n.providerTranscriptionLanguageLabel,
                         helperText: _isDashScope
                             ? '异步文件精转使用该语言提示；Flash 快转自动识别语言。'
+                            : _isGemini
+                            ? 'ISO 639-1 如 zh、en；auto 为自动识别 85+ 语言。'
                             : l10n.providerTranscriptionLanguageHint,
                       ),
-                      validator: (value) =>
-                          RegExp(r'^[a-z]{2}$').hasMatch(value?.trim() ?? '')
-                          ? null
-                          : l10n.providerTranscriptionLanguageHint,
+                      validator: (value) {
+                        final text = value?.trim() ?? '';
+                        if (_isGemini) {
+                          return RegExp(r'^(auto|[a-z]{2})$').hasMatch(text)
+                              ? null
+                              : '使用 auto，或 ISO 639-1 代码（zh / en）。';
+                        }
+                        return RegExp(r'^[a-z]{2}$').hasMatch(text)
+                            ? null
+                            : l10n.providerTranscriptionLanguageHint;
+                      },
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -579,4 +659,8 @@ class _ProviderSettingsPageState extends State<ProviderSettingsPage> {
     'fun-asr-realtime-2026-02-28',
     'fun-asr-realtime-2025-11-07',
   ];
+
+  static const _geminiBatchModels = ['gemini-3.5-transcribe'];
+
+  static const _geminiRealtimeModels = ['gemini-3.5-transcribe-live'];
 }

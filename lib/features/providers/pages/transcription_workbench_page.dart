@@ -41,6 +41,9 @@ class _TranscriptionWorkbenchPageState
       widget.controller.transcriptionConfig;
   bool get _isDashScope =>
       _provider.type == TranscriptionProviderType.dashScopeFunAsr;
+  bool get _isGemini =>
+      _provider.type == TranscriptionProviderType.geminiTranscribe;
+  bool _smartFormatting = false;
 
   @override
   void initState() {
@@ -50,7 +53,7 @@ class _TranscriptionWorkbenchPageState
     );
     _speakerCountController = TextEditingController();
     _providerId = widget.controller.transcriptionSettings.defaultProviderId;
-    _diarizationEnabled = _isDashScope;
+    _diarizationEnabled = _isDashScope || _isGemini;
   }
 
   @override
@@ -97,9 +100,14 @@ class _TranscriptionWorkbenchPageState
     final file = _file;
     if (file == null) return;
     final language = _languageController.text.trim().toLowerCase();
-    if (!RegExp(r'^[a-z]{2}$').hasMatch(language)) {
+    final languageOk = _isGemini
+        ? RegExp(r'^(auto|[a-z]{2})$').hasMatch(language)
+        : RegExp(r'^[a-z]{2}$').hasMatch(language);
+    if (!languageOk) {
       _showError(
-        AppLocalizations.of(context).providerTranscriptionLanguageHint,
+        _isGemini
+            ? '使用 auto，或 ISO 639-1 代码（zh / en）。'
+            : AppLocalizations.of(context).providerTranscriptionLanguageHint,
       );
       return;
     }
@@ -150,9 +158,10 @@ class _TranscriptionWorkbenchPageState
         providerId: _providerId,
         language: language,
         diarizationEnabled:
-            _isDashScope &&
-            _fileMode == TranscriptionFileMode.precision &&
-            _diarizationEnabled,
+            ((_isDashScope && _fileMode == TranscriptionFileMode.precision) ||
+                _isGemini) &&
+            _diarizationEnabled &&
+            !_smartFormatting,
         speakerCount:
             _isDashScope &&
                 _fileMode == TranscriptionFileMode.precision &&
@@ -160,6 +169,7 @@ class _TranscriptionWorkbenchPageState
             ? speakerCount
             : null,
         fileMode: _fileMode,
+        smartFormatting: _isGemini && _smartFormatting,
         onProgress: ({required total, required completed}) {
           widget.session.updateTranscriptionProgress(
             total: total,
@@ -253,9 +263,12 @@ class _TranscriptionWorkbenchPageState
                                 provider?.language ?? 'zh';
                             _diarizationEnabled =
                                 provider?.type ==
-                                TranscriptionProviderType.dashScopeFunAsr;
+                                    TranscriptionProviderType.dashScopeFunAsr ||
+                                provider?.type ==
+                                    TranscriptionProviderType.geminiTranscribe;
                             _speakerCountController.clear();
                             _fileMode = TranscriptionFileMode.precision;
+                            _smartFormatting = false;
                           });
                         },
                 ),
@@ -272,6 +285,8 @@ class _TranscriptionWorkbenchPageState
                           _isDashScope &&
                               _fileMode == TranscriptionFileMode.fast
                           ? 'Flash 快转自动识别语言；该值仅用于异步文件精转。'
+                          : _isGemini
+                          ? 'auto 自动识别；也可填 zh 或 en。'
                           : l10n.providerTranscriptionLanguageHint,
                     ),
                   ),
@@ -326,6 +341,37 @@ class _TranscriptionWorkbenchPageState
                           helperText: '2–100；留空由模型自动判断。',
                         ),
                       ),
+                  ],
+                  if (_isGemini) ...[
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      key: const Key('transcription_gemini_smart'),
+                      contentPadding: EdgeInsets.zero,
+                      value: _smartFormatting,
+                      onChanged: _busy
+                          ? null
+                          : (value) => setState(() {
+                              _smartFormatting = value;
+                              if (value) _diarizationEnabled = false;
+                            }),
+                      title: const Text('Smart 转写'),
+                      subtitle: const Text(
+                        '去掉口头禅、自动标点和结构化。不可与说话人/词级时间戳同时使用。',
+                      ),
+                    ),
+                    SwitchListTile(
+                      key: const Key('transcription_gemini_diarization'),
+                      contentPadding: EdgeInsets.zero,
+                      value: _diarizationEnabled,
+                      onChanged: _busy || _smartFormatting
+                          ? null
+                          : (value) =>
+                                setState(() => _diarizationEnabled = value),
+                      title: const Text('说话人分离'),
+                      subtitle: const Text(
+                        'Verbatim 模式输出 spk_1…；3 人以上为实验能力。',
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 16),
                   OutlinedButton(
