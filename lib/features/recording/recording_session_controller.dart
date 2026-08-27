@@ -369,12 +369,15 @@ class RecordingSessionController extends ChangeNotifier {
   Future<void> _finishRealtime() async {
     final client = _realtimeClient;
     _realtimeClient = null;
-    if (client != null) {
-      await client.finish();
+    try {
+      if (client != null) {
+        await client.finish();
+      }
+    } finally {
+      await _realtimeSubscription?.cancel();
+      _realtimeSubscription = null;
+      if (client != null) await client.dispose();
     }
-    await _realtimeSubscription?.cancel();
-    _realtimeSubscription = null;
-    if (client != null) await client.dispose();
   }
 
   Future<RecordingEntry?> _failCapture(

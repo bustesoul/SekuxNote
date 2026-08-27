@@ -39,6 +39,8 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
   var _sentenceId = 0;
   var _closed = false;
   var _streamEndSent = false;
+  var _awaitingFinish = false;
+  var _receivedFinalAfterStreamEnd = false;
 
   @override
   Stream<RealtimeTranscriptEvent> get events => _events.stream;
@@ -53,6 +55,8 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     _finished = Completer<void>();
     _closed = false;
     _streamEndSent = false;
+    _awaitingFinish = false;
+    _receivedFinalAfterStreamEnd = false;
     _disconnectError = null;
     final channel = _channelFactory(websocketUri(apiKey));
     _channel = channel;
@@ -100,26 +104,30 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
       if (disconnect != null) throw disconnect;
       return;
     }
+    if (_disconnectError != null) {
+      await close();
+      throw _disconnectError!;
+    }
     _streamEndSent = true;
-    Object? failure = _disconnectError;
+    _awaitingFinish = true;
+    Object? failure;
     try {
-      if (failure == null) {
-        channel.sink.add(
-          jsonEncode({
-            'realtimeInput': {'audioStreamEnd': true},
-          }),
-        );
-        // audioStreamEnd finalizes the current turn; it does not close the
-        // socket. Wait for a post-end transcript/turnComplete plus a short
-        // quiet window, not for onDone.
-        await _finished!.future.timeout(finishDeadline);
-      }
+      channel.sink.add(
+        jsonEncode({
+          'realtimeInput': {'audioStreamEnd': true},
+        }),
+      );
+      // audioStreamEnd finalizes the current turn; it does not close the
+      // socket. Wait for a final transcript after stream end, or the
+      // overall deadline — not for turnComplete/interim alone.
+      await _finished!.future.timeout(finishDeadline);
     } on TimeoutException {
       // Local recording must complete even if Gemini is slow to finalize.
     } catch (error) {
-      failure ??= error;
+      failure = error;
     }
     await close();
+    failure ??= _disconnectError;
     if (failure != null) throw failure;
   }
 
@@ -132,11 +140,7 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     await _subscription?.cancel();
     _subscription = null;
     if (_finished?.isCompleted == false) {
-      if (_disconnectError != null) {
-        _finished!.completeError(_disconnectError!);
-      } else {
-        _finished!.complete();
-      }
+      _finished!.complete();
     }
     if (channel != null) {
       try {
@@ -174,12 +178,20 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
         .toList(growable: false);
   }
 
-  void _armFinishQuiet() {
-    if (!_streamEndSent || _finished?.isCompleted == true) return;
+  void _completeFinished() {
     _finishQuietTimer?.cancel();
-    _finishQuietTimer = Timer(finishQuiet, () {
-      if (_finished?.isCompleted == false) _finished!.complete();
-    });
+    _finishQuietTimer = null;
+    if (_finished?.isCompleted == false) _finished!.complete();
+  }
+
+  void _armFinishQuiet() {
+    if (!_streamEndSent ||
+        !_receivedFinalAfterStreamEnd ||
+        _finished?.isCompleted == true) {
+      return;
+    }
+    _finishQuietTimer?.cancel();
+    _finishQuietTimer = Timer(finishQuiet, _completeFinished);
   }
 
   void _failDisconnect(Object error, [StackTrace? stackTrace]) {
@@ -187,8 +199,10 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     if (_started?.isCompleted == false) {
       _started!.completeError(error, stackTrace);
     }
-    if (_finished?.isCompleted == false) {
-      _finished!.completeError(error, stackTrace);
+    // Never completeError _finished: nobody may be awaiting it yet.
+    // Wake finish() if it is waiting, then let it throw _disconnectError.
+    if (_awaitingFinish && _finished?.isCompleted == false) {
+      _finished!.complete();
     }
     if (!_events.isClosed) {
       _events.addError(error, stackTrace);
@@ -251,17 +265,13 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
       _sentenceId += 1;
     }
 
-    final turnComplete =
-        serverContent['turnComplete'] == true ||
-        serverContent['turn_complete'] == true ||
-        serverContent['generationComplete'] == true ||
-        serverContent['generation_complete'] == true;
-    if (_streamEndSent &&
-        (finalText.isNotEmpty ||
-            interimText.isNotEmpty ||
-            turnComplete)) {
+    if (!_streamEndSent) return;
+    if (finalText.isNotEmpty) {
+      _receivedFinalAfterStreamEnd = true;
       _armFinishQuiet();
     }
+    // Interim and turnComplete are not a reliable end-of-stream signal.
+    // Keep waiting for a final inputTranscription or the finish deadline.
   }
 
   void _onError(Object error, StackTrace stackTrace) {

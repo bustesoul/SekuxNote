@@ -100,6 +100,42 @@ void main() {
       ),
     );
   });
+
+  test('finish waits for a late final transcript after turnComplete', () async {
+    final harness = _GeminiSocketHarness();
+    final client = GeminiRealtimeClient(
+      config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
+      apiKey: 'gemini-test-key',
+      channelFactory: harness.factory,
+      finishQuiet: Duration.zero,
+      finishDeadline: const Duration(milliseconds: 800),
+    );
+    addTearDown(client.dispose);
+
+    final events = <RealtimeTranscriptEvent>[];
+    client.events.listen(events.add);
+
+    await harness.connect(client);
+    final finishing = client.finish();
+    await harness.waitForClientMessage((body) {
+      final input = body['realtimeInput'];
+      return input is Map && input['audioStreamEnd'] == true;
+    });
+    harness.addServerMessage({
+      'serverContent': {'turnComplete': true},
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    harness.addServerMessage({
+      'serverContent': {
+        'inputTranscription': {'text': 'late sentence'},
+      },
+    });
+    await finishing;
+
+    expect(events.where((event) => event.isFinal).map((event) => event.text), [
+      'late sentence',
+    ]);
+  });
 }
 
 class _GeminiSocketHarness {
@@ -115,7 +151,7 @@ class _GeminiSocketHarness {
   late final StreamController<dynamic> outgoing;
   final sent = <String>[];
 
-  WebSocketChannel factory(Uri uri) => FakeWebSocketChannel(
+  WebSocketChannel factory(Uri _) => FakeWebSocketChannel(
     stream: incoming.stream,
     sink: outgoing.sink,
   );
@@ -173,10 +209,9 @@ class FakeWebSocketSink implements WebSocketSink {
 class FakeWebSocketChannel extends StreamChannelMixin<dynamic>
     implements WebSocketChannel {
   FakeWebSocketChannel({
-    required Stream<dynamic> stream,
+    required this.stream,
     required StreamSink<dynamic> sink,
-  }) : stream = stream,
-       sink = FakeWebSocketSink(sink);
+  }) : sink = FakeWebSocketSink(sink);
 
   @override
   final Stream stream;
