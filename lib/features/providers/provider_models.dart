@@ -12,7 +12,11 @@ enum TranscriptionCapability {
   usage,
 }
 
-enum TranscriptionProviderType { openAiCompatible, dashScopeFunAsr }
+enum TranscriptionProviderType {
+  openAiCompatible,
+  dashScopeFunAsr,
+  geminiTranscribe,
+}
 
 enum TextProviderProtocol { responses, chatCompletions }
 
@@ -81,6 +85,7 @@ class TranscriptionTask {
     this.language = 'zh',
     this.diarizationEnabled = false,
     this.speakerCount,
+    this.smartFormatting = false,
     this.sourcePath,
     this.remoteTaskId,
     this.transcript,
@@ -102,6 +107,7 @@ class TranscriptionTask {
   final String language;
   final bool diarizationEnabled;
   final int? speakerCount;
+  final bool smartFormatting;
   final String? sourcePath;
   final String? remoteTaskId;
   final String? transcript;
@@ -124,6 +130,7 @@ class TranscriptionTask {
     String? language,
     bool? diarizationEnabled,
     int? speakerCount,
+    bool? smartFormatting,
     List<TranscriptionSegment>? segments,
     bool clearTranscript = false,
     bool clearErrorMessage = false,
@@ -143,6 +150,7 @@ class TranscriptionTask {
       language: language ?? this.language,
       diarizationEnabled: diarizationEnabled ?? this.diarizationEnabled,
       speakerCount: speakerCount ?? this.speakerCount,
+      smartFormatting: smartFormatting ?? this.smartFormatting,
       sourcePath: sourcePath ?? this.sourcePath,
       remoteTaskId: remoteTaskId ?? this.remoteTaskId,
       transcript: clearTranscript ? null : transcript ?? this.transcript,
@@ -398,15 +406,44 @@ class TranscriptionProviderConfig {
         dashScopeApiUrl: '',
       );
 
+  factory TranscriptionProviderConfig.geminiDefaults({required String id}) =>
+      TranscriptionProviderConfig(
+        id: id,
+        type: TranscriptionProviderType.geminiTranscribe,
+        name: 'Gemini 3.5 Transcribe',
+        enabled: true,
+        credentialRef: 'sekuxnote.transcription.$id',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+        batchModel: 'gemini-3.5-transcribe',
+        realtimeModel: 'gemini-3.5-transcribe-live',
+        language: 'zh',
+        chunkDurationSeconds: 1800,
+        maxConcurrentUploads: 1,
+        capabilities: const {
+          TranscriptionCapability.batch,
+          TranscriptionCapability.realtime,
+          TranscriptionCapability.diarization,
+          TranscriptionCapability.segmentTimestamps,
+          TranscriptionCapability.wordTimestamps,
+          TranscriptionCapability.vocabulary,
+          TranscriptionCapability.usage,
+        },
+      );
+
   factory TranscriptionProviderConfig.fromJson(Map<String, Object?> json) {
     final id = json['id'] as String? ?? 'transcription-openai';
     final type = TranscriptionProviderType.values.firstWhere(
       (type) => type.name == json['type'],
       orElse: () => TranscriptionProviderType.openAiCompatible,
     );
-    final defaults = type == TranscriptionProviderType.dashScopeFunAsr
-        ? TranscriptionProviderConfig.dashScopeDefaults(id: id)
-        : TranscriptionProviderConfig.defaults();
+    final defaults = switch (type) {
+      TranscriptionProviderType.dashScopeFunAsr =>
+        TranscriptionProviderConfig.dashScopeDefaults(id: id),
+      TranscriptionProviderType.geminiTranscribe =>
+        TranscriptionProviderConfig.geminiDefaults(id: id),
+      TranscriptionProviderType.openAiCompatible =>
+        TranscriptionProviderConfig.defaults(),
+    };
     final values = (json['capabilities'] as List<Object?>? ?? const [])
         .whereType<String>()
         .map(
@@ -663,11 +700,15 @@ class TranscriptionRequestOptions {
     required this.language,
     this.diarizationEnabled = false,
     this.speakerCount,
+    this.smartFormatting = false,
+    this.customVocabulary = const [],
   });
 
   final String language;
   final bool diarizationEnabled;
   final int? speakerCount;
+  final bool smartFormatting;
+  final List<String> customVocabulary;
 }
 
 class TranscriptionResult {

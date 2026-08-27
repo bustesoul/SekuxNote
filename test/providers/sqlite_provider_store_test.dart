@@ -23,6 +23,20 @@ void main() {
     expect(config.capabilities, contains(TranscriptionCapability.realtime));
   });
 
+  test('Gemini 3.5 Transcribe JSON restores dedicated models', () {
+    final config = TranscriptionProviderConfig.fromJson({
+      'id': 'gemini-1',
+      'type': 'geminiTranscribe',
+      'name': 'Gemini',
+      'batchModel': 'gemini-3.5-transcribe',
+    });
+    expect(config.type, TranscriptionProviderType.geminiTranscribe);
+    expect(config.realtimeModel, 'gemini-3.5-transcribe-live');
+    expect(config.baseUrl, 'https://generativelanguage.googleapis.com');
+    expect(config.capabilities, contains(TranscriptionCapability.diarization));
+    expect(config.capabilities, contains(TranscriptionCapability.wordTimestamps));
+  });
+
   test(
     'FR-SET SQLite provider configuration survives reopening the database',
     () async {
@@ -55,6 +69,7 @@ void main() {
           chunksTotal: 6,
           chunksCompleted: 2,
           remoteTaskId: 'remote-task-1',
+          smartFormatting: true,
           errorMessage: 'requestFailed',
         ),
       );
@@ -91,6 +106,7 @@ void main() {
       expect(tasks.single.chunksTotal, 6);
       expect(tasks.single.errorMessage, 'requestFailed');
       expect(tasks.single.remoteTaskId, 'remote-task-1');
+      expect(tasks.single.smartFormatting, isTrue);
       final chunks = await reopened.listChunks('task-1');
       expect(chunks, hasLength(2));
       expect(chunks.last.attempts, 4);

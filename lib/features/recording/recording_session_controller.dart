@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 
 import '../../app/storage/app_data_directory.dart';
-import '../providers/dashscope_realtime_client.dart';
 import '../providers/provider_controller.dart';
+import '../providers/realtime_transcription_client.dart';
 import 'recording_background_service.dart';
 import 'recording_models.dart';
 import 'wav_audio_file.dart';
@@ -29,7 +29,7 @@ class RecordingSessionController extends ChangeNotifier {
   final Map<int, RealtimeTranscriptEvent> _sentences = {};
   StreamSubscription<Uint8List>? _audioSubscription;
   StreamSubscription<RealtimeTranscriptEvent>? _realtimeSubscription;
-  DashScopeRealtimeClient? _realtimeClient;
+  RealtimeTranscriptionClient? _realtimeClient;
   _PcmStreamWriter? _writer;
   Completer<void>? _audioDone;
   RecordingEntry? _active;
@@ -167,8 +167,13 @@ class RecordingSessionController extends ChangeNotifier {
     await _capture.pause();
     _writer?.flushSync();
     _audioLevel = 0;
-    await _finishRealtime();
-    _active = entry.copyWith(
+    try {
+      await _finishRealtime();
+    } catch (_) {
+      // Connection loss is stored on the entry; pausing local capture must succeed.
+    }
+    final latest = _active ?? entry;
+    _active = latest.copyWith(
       status: RecordingStatus.paused,
       durationMilliseconds: elapsedMilliseconds,
       pcmBytes: _pcmBytes,
@@ -232,6 +237,7 @@ class RecordingSessionController extends ChangeNotifier {
     } catch (error) {
       realtimeFinishError = error;
     }
+    final latest = _active ?? entry;
     final validation = await WavAudioFile.finalizePcm(
       pcmFile: File('${File(entry.audioPath).parent.path}/audio.pcm.part'),
       wavFile: File(entry.audioPath),
@@ -253,13 +259,16 @@ class RecordingSessionController extends ChangeNotifier {
       notifyListeners();
       return failed;
     }
-    final completed = entry.copyWith(
+    final realtimeInterrupted =
+        latest.realtimeStatus == RealtimeRecordingStatus.interrupted ||
+        realtimeFinishError != null;
+    final completed = latest.copyWith(
       status: RecordingStatus.ready,
       durationMilliseconds: validation.durationMilliseconds,
-      realtimeStatus: entry.realtimeEnabled
-          ? realtimeFinishError == null
-                ? RealtimeRecordingStatus.completed
-                : RealtimeRecordingStatus.interrupted
+      realtimeStatus: latest.realtimeEnabled
+          ? realtimeInterrupted
+                ? RealtimeRecordingStatus.interrupted
+                : RealtimeRecordingStatus.completed
           : RealtimeRecordingStatus.disabled,
       realtimeTranscript: _completedTranscript(),
       pcmBytes: validation.dataBytes,
@@ -267,7 +276,7 @@ class RecordingSessionController extends ChangeNotifier {
       audioIntegrityStatus: AudioIntegrityStatus.valid,
       updatedAt: DateTime.now(),
       errorMessage: realtimeFinishError?.toString(),
-      clearError: realtimeFinishError == null,
+      clearError: !realtimeInterrupted,
     );
     _active = null;
     _audioLevel = 0;
@@ -304,7 +313,7 @@ class RecordingSessionController extends ChangeNotifier {
     final entry = _active;
     if (entry == null || !entry.realtimeEnabled) return;
     try {
-      final client = await _providerController.createDashScopeRealtimeClient();
+      final client = await _providerController.createRealtimeClient();
       _realtimeClient = client;
       _realtimeSubscription = client.events.listen(
         (event) {
@@ -360,12 +369,15 @@ class RecordingSessionController extends ChangeNotifier {
   Future<void> _finishRealtime() async {
     final client = _realtimeClient;
     _realtimeClient = null;
-    if (client != null) {
-      await client.finish();
+    try {
+      if (client != null) {
+        await client.finish();
+      }
+    } finally {
+      await _realtimeSubscription?.cancel();
+      _realtimeSubscription = null;
+      if (client != null) await client.dispose();
     }
-    await _realtimeSubscription?.cancel();
-    _realtimeSubscription = null;
-    if (client != null) await client.dispose();
   }
 
   Future<RecordingEntry?> _failCapture(

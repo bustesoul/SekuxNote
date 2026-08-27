@@ -101,7 +101,7 @@ class _RecordingEntryPageState extends State<RecordingEntryPage> {
           ? null
           : (value) => setState(() => _realtimeEnabled = value),
       title: const Text('录音中实时转写'),
-      subtitle: const Text('使用所选供应商的实时模型；本地录音不依赖网络。'),
+      subtitle: const Text('使用默认转写供应商的实时模型（Fun-ASR 或 Gemini Live）；本地录音不依赖网络。'),
     ),
     const SizedBox(height: 24),
     FilledButton.icon(

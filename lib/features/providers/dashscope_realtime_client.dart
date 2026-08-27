@@ -8,28 +8,16 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'openai_api_client.dart';
 import 'provider_models.dart';
+import 'realtime_transcription_client.dart';
 
-class RealtimeTranscriptEvent {
-  const RealtimeTranscriptEvent({
-    required this.sentenceId,
-    required this.text,
-    required this.isFinal,
-    required this.beginMilliseconds,
-    this.endMilliseconds,
-  });
-
-  final int sentenceId;
-  final String text;
-  final bool isFinal;
-  final int beginMilliseconds;
-  final int? endMilliseconds;
-}
+export 'realtime_transcription_client.dart'
+    show RealtimeTranscriptEvent, RealtimeTranscriptionClient;
 
 typedef DashScopeChannelFactory =
     WebSocketChannel Function(Uri uri, Map<String, dynamic> headers);
 
 /// Raw WebSocket adapter for Fun-ASR realtime transcription.
-class DashScopeRealtimeClient {
+class DashScopeRealtimeClient implements RealtimeTranscriptionClient {
   DashScopeRealtimeClient({
     required this.config,
     required this.apiKey,
@@ -48,8 +36,10 @@ class DashScopeRealtimeClient {
   String? _taskId;
   bool _taskStarted = false;
 
+  @override
   Stream<RealtimeTranscriptEvent> get events => _events.stream;
 
+  @override
   Future<void> connect({String? context}) async {
     if (_channel != null) return;
     final model = config.realtimeModel?.trim() ?? '';
@@ -106,11 +96,13 @@ class DashScopeRealtimeClient {
     await _started!.future.timeout(const Duration(seconds: 15));
   }
 
+  @override
   void sendAudio(Uint8List bytes) {
     if (_started?.isCompleted != true || bytes.isEmpty) return;
     _channel?.sink.add(bytes);
   }
 
+  @override
   Future<void> finish() async {
     final channel = _channel;
     final taskId = _taskId;
@@ -145,6 +137,7 @@ class DashScopeRealtimeClient {
     if (channel != null) await channel.sink.close();
   }
 
+  @override
   Future<void> dispose() async {
     await close();
     await _events.close();

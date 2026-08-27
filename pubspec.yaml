@@ -21,6 +21,7 @@ dependencies:
   path_provider: ^2.1.5
   record: ^6.2.1
   sqflite_common_ffi: ^2.4.0+2
+  stream_channel: ^2.1.4
   web_socket_channel: ^3.0.3
   flutter_markdown_plus: ^1.0.12
 

@@ -211,6 +211,63 @@ void main() {
     expect(retried.chunksCompleted, 1);
   });
 
+  test('Gemini Smart tasks keep Smart mode on retry', () async {
+    final modes = <String>[];
+    var denied = true;
+    final controller = ProviderController(
+      settingsStore: MemoryProviderSettingsStore(),
+      credentialStore: MemoryCredentialStore(),
+      taskStore: MemoryTranscriptionTaskStore(),
+      taskAudioStore: MemoryTaskAudioStore(),
+      apiClient: OpenAiApiClient(
+        client: MockClient((request) async {
+          if (request.url.path.endsWith('/v1beta/interactions')) {
+            final body =
+                jsonDecode(utf8.decode(request.bodyBytes)) as Map<String, Object?>;
+            modes.add(
+              (((body['generation_config'] as Map)['transcription_config']
+                      as Map)['mode']
+                  as Map)['type'] as String,
+            );
+            return denied
+                ? http.Response('denied', 401)
+                : http.Response(jsonEncode({'output_text': 'cleaned'}), 200);
+          }
+          return http.Response('unexpected', 500);
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+    final gemini = await controller.addTranscriptionProvider(
+      TranscriptionProviderType.geminiTranscribe,
+    );
+    await controller.saveTranscription(
+      providerId: gemini.id,
+      name: gemini.name,
+      enabled: true,
+      baseUrl: gemini.baseUrl,
+      batchModel: gemini.batchModel,
+      language: 'zh',
+      chunkDurationSeconds: 1800,
+      maxConcurrentUploads: 1,
+      apiKey: 'gemini-key',
+    );
+
+    final failed = await controller.startTranscriptionTask(
+      SelectedAudioFile(name: 'meeting.m4a', bytes: Uint8List.fromList([1])),
+      providerId: gemini.id,
+      smartFormatting: true,
+    );
+    expect(failed.status, TranscriptionTaskStatus.failed);
+    expect(failed.smartFormatting, isTrue);
+
+    denied = false;
+    final retried = await controller.retryTranscriptionTask(failed.id);
+    expect(retried.status, TranscriptionTaskStatus.succeeded);
+    expect(retried.smartFormatting, isTrue);
+    expect(modes, ['smart', 'smart']);
+  });
+
   test('FR-IMP stopping a task prevents new chunk dispatch', () async {
     final response = Completer<http.Response>();
     final taskStore = MemoryTranscriptionTaskStore();

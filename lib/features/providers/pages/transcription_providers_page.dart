@@ -64,6 +64,17 @@ class TranscriptionProvidersPage extends StatelessWidget {
                 TranscriptionProviderType.dashScopeFunAsr,
               ),
             ),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('Gemini 3.5 Transcribe'),
+              subtitle: const Text(
+                'Google 专用语音转写：文件精转、说话人、词级时间戳、实时 Live',
+              ),
+              onTap: () => Navigator.pop(
+                context,
+                TranscriptionProviderType.geminiTranscribe,
+              ),
+            ),
           ],
         ),
       ),
@@ -107,17 +118,23 @@ class TranscriptionProvidersPage extends StatelessWidget {
               final isDefault = provider.id == settings.defaultProviderId;
               return ListTile(
                 key: Key('transcription_provider_${provider.id}'),
-                leading: Icon(
-                  provider.type == TranscriptionProviderType.dashScopeFunAsr
-                      ? Icons.graphic_eq
-                      : Icons.api_outlined,
-                ),
+                leading: Icon(switch (provider.type) {
+                  TranscriptionProviderType.dashScopeFunAsr =>
+                    Icons.graphic_eq,
+                  TranscriptionProviderType.geminiTranscribe =>
+                    Icons.auto_awesome_outlined,
+                  TranscriptionProviderType.openAiCompatible =>
+                    Icons.api_outlined,
+                }),
                 title: Text(provider.name),
-                subtitle: Text(
-                  provider.type == TranscriptionProviderType.dashScopeFunAsr
-                      ? '阿里百炼原生 · ${provider.batchModel}'
-                      : '${provider.baseUrl} · ${provider.batchModel}',
-                ),
+                subtitle: Text(switch (provider.type) {
+                  TranscriptionProviderType.dashScopeFunAsr =>
+                    '阿里百炼原生 · ${provider.batchModel}',
+                  TranscriptionProviderType.geminiTranscribe =>
+                    'Gemini · ${provider.batchModel}',
+                  TranscriptionProviderType.openAiCompatible =>
+                    '${provider.baseUrl} · ${provider.batchModel}',
+                }),
                 trailing: IconButton(
                   tooltip: isDefault ? '默认供应商' : '设为默认',
                   icon: Icon(
