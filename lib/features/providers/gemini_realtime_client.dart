@@ -19,17 +19,23 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     required this.config,
     required this.apiKey,
     GeminiChannelFactory? channelFactory,
+    this.finishQuiet = const Duration(milliseconds: 300),
+    this.finishDeadline = const Duration(milliseconds: 1200),
   }) : _channelFactory = channelFactory ?? _defaultChannelFactory;
 
   final TranscriptionProviderConfig config;
   final String apiKey;
   final GeminiChannelFactory _channelFactory;
+  final Duration finishQuiet;
+  final Duration finishDeadline;
   final StreamController<RealtimeTranscriptEvent> _events =
       StreamController<RealtimeTranscriptEvent>.broadcast();
   WebSocketChannel? _channel;
   StreamSubscription<Object?>? _subscription;
   Completer<void>? _started;
   Completer<void>? _finished;
+  Timer? _finishQuietTimer;
+  Object? _disconnectError;
   var _sentenceId = 0;
   var _closed = false;
   var _streamEndSent = false;
@@ -47,6 +53,7 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     _finished = Completer<void>();
     _closed = false;
     _streamEndSent = false;
+    _disconnectError = null;
     final channel = _channelFactory(websocketUri(apiKey));
     _channel = channel;
     _subscription = channel.stream.listen(
@@ -88,32 +95,49 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
   @override
   Future<void> finish() async {
     final channel = _channel;
-    if (channel == null) return;
+    if (channel == null) {
+      final disconnect = _disconnectError;
+      if (disconnect != null) throw disconnect;
+      return;
+    }
     _streamEndSent = true;
+    Object? failure = _disconnectError;
     try {
-      channel.sink.add(
-        jsonEncode({
-          'realtimeInput': {'audioStreamEnd': true},
-        }),
-      );
-      // inputTranscription is delivered independently of turnComplete /
-      // usageMetadata, so wait for the socket to close after audioStreamEnd.
-      await _finished?.future.timeout(const Duration(seconds: 8));
+      if (failure == null) {
+        channel.sink.add(
+          jsonEncode({
+            'realtimeInput': {'audioStreamEnd': true},
+          }),
+        );
+        // audioStreamEnd finalizes the current turn; it does not close the
+        // socket. Wait for a post-end transcript/turnComplete plus a short
+        // quiet window, not for onDone.
+        await _finished!.future.timeout(finishDeadline);
+      }
     } on TimeoutException {
       // Local recording must complete even if Gemini is slow to finalize.
-    } catch (_) {
-      // Ignore socket errors while tearing down.
+    } catch (error) {
+      failure ??= error;
     }
     await close();
+    if (failure != null) throw failure;
   }
 
   Future<void> close() async {
+    _finishQuietTimer?.cancel();
+    _finishQuietTimer = null;
     _closed = true;
     final channel = _channel;
     _channel = null;
     await _subscription?.cancel();
     _subscription = null;
-    if (_finished?.isCompleted == false) _finished!.complete();
+    if (_finished?.isCompleted == false) {
+      if (_disconnectError != null) {
+        _finished!.completeError(_disconnectError!);
+      } else {
+        _finished!.complete();
+      }
+    }
     if (channel != null) {
       try {
         await channel.sink.close();
@@ -150,6 +174,27 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
         .toList(growable: false);
   }
 
+  void _armFinishQuiet() {
+    if (!_streamEndSent || _finished?.isCompleted == true) return;
+    _finishQuietTimer?.cancel();
+    _finishQuietTimer = Timer(finishQuiet, () {
+      if (_finished?.isCompleted == false) _finished!.complete();
+    });
+  }
+
+  void _failDisconnect(Object error, [StackTrace? stackTrace]) {
+    _disconnectError ??= error;
+    if (_started?.isCompleted == false) {
+      _started!.completeError(error, stackTrace);
+    }
+    if (_finished?.isCompleted == false) {
+      _finished!.completeError(error, stackTrace);
+    }
+    if (!_events.isClosed) {
+      _events.addError(error, stackTrace);
+    }
+  }
+
   void _onMessage(Object? data) {
     final raw = switch (data) {
       String value => value,
@@ -166,12 +211,8 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
     }
     final error = body['error'];
     if (error is Map) {
-      final message =
-          error['message']?.toString() ?? 'realtimeTaskFailed';
-      final exception = ProviderRequestException(message);
-      if (_started?.isCompleted == false) _started!.completeError(exception);
-      if (_finished?.isCompleted == false) _finished!.completeError(exception);
-      _events.addError(exception);
+      final message = error['message']?.toString() ?? 'realtimeTaskFailed';
+      _failDisconnect(ProviderRequestException(message));
       return;
     }
     final serverContent = _map(body['serverContent'] ?? body['server_content']);
@@ -209,37 +250,30 @@ class GeminiRealtimeClient implements RealtimeTranscriptionClient {
       );
       _sentenceId += 1;
     }
+
+    final turnComplete =
+        serverContent['turnComplete'] == true ||
+        serverContent['turn_complete'] == true ||
+        serverContent['generationComplete'] == true ||
+        serverContent['generation_complete'] == true;
+    if (_streamEndSent &&
+        (finalText.isNotEmpty ||
+            interimText.isNotEmpty ||
+            turnComplete)) {
+      _armFinishQuiet();
+    }
   }
 
   void _onError(Object error, StackTrace stackTrace) {
-    if (_started?.isCompleted == false) {
-      _started!.completeError(error, stackTrace);
-    }
-    if (_finished?.isCompleted == false) {
-      _finished!.completeError(error, stackTrace);
-    }
-    _events.addError(error, stackTrace);
+    _failDisconnect(error, stackTrace);
   }
 
   void _onDone() {
-    if (_started?.isCompleted == false) {
-      _started!.completeError(
-        const ProviderRequestException('realtimeConnectionLost'),
-      );
-    }
-    if (!_streamEndSent) {
-      final exception = const ProviderRequestException(
-        'realtimeConnectionLost',
-      );
-      if (_finished?.isCompleted == false) {
-        _finished!.completeError(exception);
-      }
-      if (!_events.isClosed) {
-        _events.addError(exception);
-      }
+    if (_streamEndSent) {
+      if (_finished?.isCompleted == false) _finished!.complete();
       return;
     }
-    if (_finished?.isCompleted == false) _finished!.complete();
+    _failDisconnect(const ProviderRequestException('realtimeConnectionLost'));
   }
 
   static WebSocketChannel _defaultChannelFactory(Uri uri) =>

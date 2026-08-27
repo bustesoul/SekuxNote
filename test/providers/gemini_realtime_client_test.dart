@@ -18,19 +18,14 @@ void main() {
     expect(uri.queryParameters['key'], 'gemini-test-key');
   });
 
-  test('finish waits for the last transcript after audioStreamEnd', () async {
-    late StreamController<dynamic> incoming;
-    late StreamController<dynamic> outgoing;
+  test('finish keeps the last transcript without waiting for socket close', () async {
+    final harness = _GeminiSocketHarness();
     final client = GeminiRealtimeClient(
       config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
       apiKey: 'gemini-test-key',
-      channelFactory: (_) {
-        incoming = StreamController<dynamic>.broadcast();
-        outgoing = StreamController<dynamic>();
-        return WebSocketChannel(
-          StreamChannel(incoming.stream, outgoing.sink),
-        );
-      },
+      channelFactory: harness.factory,
+      finishQuiet: Duration.zero,
+      finishDeadline: const Duration(seconds: 1),
     );
     addTearDown(client.dispose);
 
@@ -38,62 +33,51 @@ void main() {
     final errors = <Object>[];
     client.events.listen(events.add, onError: errors.add);
 
-    final connecting = client.connect();
-    await outgoing.stream.first;
-    incoming.add(jsonEncode({'setupComplete': <String, Object?>{}}));
-    await connecting;
-
-    incoming.add(
-      jsonEncode({
-        'serverContent': {'turnComplete': true},
-        'usageMetadata': {'totalTokenCount': 1},
-      }),
-    );
+    await harness.connect(client);
+    harness.addServerMessage({
+      'serverContent': {'turnComplete': true},
+      'usageMetadata': {'totalTokenCount': 1},
+    });
     await Future<void>.delayed(Duration.zero);
 
     final finishing = client.finish();
-    await outgoing.stream.first;
-    incoming.add(
-      jsonEncode({
-        'serverContent': {
-          'inputTranscription': {'text': 'last sentence'},
-        },
-      }),
-    );
-    await incoming.close();
+    await harness.waitForClientMessage((body) {
+      final input = body['realtimeInput'];
+      return input is Map && input['audioStreamEnd'] == true;
+    });
+    harness.addServerMessage({
+      'serverContent': {
+        'inputTranscription': {'text': 'last sentence'},
+        'turnComplete': true,
+      },
+    });
+    final sw = Stopwatch()..start();
     await finishing;
+    expect(sw.elapsed, lessThan(const Duration(seconds: 2)));
 
     expect(errors, isEmpty);
     expect(events, hasLength(1));
     expect(events.single.text, 'last sentence');
     expect(events.single.isFinal, isTrue);
+    expect(harness.incoming.isClosed, isFalse);
   });
 
-  test('unexpected socket close is reported as a lost connection', () async {
-    late StreamController<dynamic> incoming;
-    late StreamController<dynamic> outgoing;
+  test('unexpected socket close is reported and finish rethrows', () async {
+    final harness = _GeminiSocketHarness();
     final client = GeminiRealtimeClient(
       config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
       apiKey: 'gemini-test-key',
-      channelFactory: (_) {
-        incoming = StreamController<dynamic>.broadcast();
-        outgoing = StreamController<dynamic>();
-        return WebSocketChannel(
-          StreamChannel(incoming.stream, outgoing.sink),
-        );
-      },
+      channelFactory: harness.factory,
+      finishQuiet: Duration.zero,
+      finishDeadline: const Duration(milliseconds: 200),
     );
     addTearDown(client.dispose);
 
     final errors = <Object>[];
     client.events.listen((_) {}, onError: errors.add);
 
-    final connecting = client.connect();
-    await outgoing.stream.first;
-    incoming.add(jsonEncode({'setupComplete': <String, Object?>{}}));
-    await connecting;
-
-    await incoming.close();
+    await harness.connect(client);
+    await harness.incoming.close();
     await Future<void>.delayed(Duration.zero);
 
     expect(errors, hasLength(1));
@@ -105,5 +89,110 @@ void main() {
         'realtimeConnectionLost',
       ),
     );
+    await expectLater(
+      client.finish(),
+      throwsA(
+        isA<ProviderRequestException>().having(
+          (error) => error.message,
+          'message',
+          'realtimeConnectionLost',
+        ),
+      ),
+    );
   });
+}
+
+class _GeminiSocketHarness {
+  _GeminiSocketHarness() {
+    incoming = StreamController<dynamic>.broadcast();
+    outgoing = StreamController<dynamic>.broadcast();
+    outgoing.stream.listen((event) {
+      sent.add(event is String ? event : jsonEncode(event));
+    });
+  }
+
+  late final StreamController<dynamic> incoming;
+  late final StreamController<dynamic> outgoing;
+  final sent = <String>[];
+
+  WebSocketChannel factory(Uri uri) => FakeWebSocketChannel(
+    stream: incoming.stream,
+    sink: outgoing.sink,
+  );
+
+  Future<void> connect(GeminiRealtimeClient client) async {
+    final connecting = client.connect();
+    await waitForClientMessage((body) => body.containsKey('setup'));
+    addServerMessage({'setupComplete': <String, Object?>{}});
+    await connecting;
+  }
+
+  void addServerMessage(Map<String, Object?> body) {
+    incoming.add(jsonEncode(body));
+  }
+
+  Future<void> waitForClientMessage(
+    bool Function(Map<String, Object?> body) match,
+  ) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 2));
+    while (DateTime.now().isBefore(deadline)) {
+      for (final raw in sent) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map && match(Map<String, Object?>.from(decoded))) {
+          return;
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
+    fail('did not receive expected client message in $sent');
+  }
+}
+
+class FakeWebSocketSink implements WebSocketSink {
+  FakeWebSocketSink(this._sink);
+
+  final StreamSink<dynamic> _sink;
+
+  @override
+  void add(event) => _sink.add(event);
+
+  @override
+  void addError(Object error, [StackTrace? stackTrace]) =>
+      _sink.addError(error, stackTrace);
+
+  @override
+  Future addStream(Stream stream) => _sink.addStream(stream);
+
+  @override
+  Future close([int? closeCode, String? closeReason]) => _sink.close();
+
+  @override
+  Future get done => _sink.done;
+}
+
+class FakeWebSocketChannel extends StreamChannelMixin<dynamic>
+    implements WebSocketChannel {
+  FakeWebSocketChannel({
+    required Stream<dynamic> stream,
+    required StreamSink<dynamic> sink,
+  }) : stream = stream,
+       sink = FakeWebSocketSink(sink);
+
+  @override
+  final Stream stream;
+
+  @override
+  final WebSocketSink sink;
+
+  @override
+  Future<void> get ready => Future<void>.value();
+
+  @override
+  String? protocol;
+
+  @override
+  int? closeCode;
+
+  @override
+  String? closeReason;
 }

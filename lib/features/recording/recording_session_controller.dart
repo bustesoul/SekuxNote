@@ -167,8 +167,13 @@ class RecordingSessionController extends ChangeNotifier {
     await _capture.pause();
     _writer?.flushSync();
     _audioLevel = 0;
-    await _finishRealtime();
-    _active = entry.copyWith(
+    try {
+      await _finishRealtime();
+    } catch (_) {
+      // Connection loss is stored on the entry; pausing local capture must succeed.
+    }
+    final latest = _active ?? entry;
+    _active = latest.copyWith(
       status: RecordingStatus.paused,
       durationMilliseconds: elapsedMilliseconds,
       pcmBytes: _pcmBytes,
@@ -232,6 +237,7 @@ class RecordingSessionController extends ChangeNotifier {
     } catch (error) {
       realtimeFinishError = error;
     }
+    final latest = _active ?? entry;
     final validation = await WavAudioFile.finalizePcm(
       pcmFile: File('${File(entry.audioPath).parent.path}/audio.pcm.part'),
       wavFile: File(entry.audioPath),
@@ -253,13 +259,16 @@ class RecordingSessionController extends ChangeNotifier {
       notifyListeners();
       return failed;
     }
-    final completed = entry.copyWith(
+    final realtimeInterrupted =
+        latest.realtimeStatus == RealtimeRecordingStatus.interrupted ||
+        realtimeFinishError != null;
+    final completed = latest.copyWith(
       status: RecordingStatus.ready,
       durationMilliseconds: validation.durationMilliseconds,
-      realtimeStatus: entry.realtimeEnabled
-          ? realtimeFinishError == null
-                ? RealtimeRecordingStatus.completed
-                : RealtimeRecordingStatus.interrupted
+      realtimeStatus: latest.realtimeEnabled
+          ? realtimeInterrupted
+                ? RealtimeRecordingStatus.interrupted
+                : RealtimeRecordingStatus.completed
           : RealtimeRecordingStatus.disabled,
       realtimeTranscript: _completedTranscript(),
       pcmBytes: validation.dataBytes,
@@ -267,7 +276,7 @@ class RecordingSessionController extends ChangeNotifier {
       audioIntegrityStatus: AudioIntegrityStatus.valid,
       updatedAt: DateTime.now(),
       errorMessage: realtimeFinishError?.toString(),
-      clearError: realtimeFinishError == null,
+      clearError: !realtimeInterrupted,
     );
     _active = null;
     _audioLevel = 0;
