@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../../providers/provider_controller.dart';
 import '../../providers/provider_models.dart';
@@ -37,6 +39,7 @@ class _AssistantPageState extends State<AssistantPage> {
   void initState() {
     super.initState();
     _inputController.addListener(_onInputChanged);
+    widget.controller.addListener(_onControllerChanged);
   }
 
   @override
@@ -44,9 +47,12 @@ class _AssistantPageState extends State<AssistantPage> {
     _inputController
       ..removeListener(_onInputChanged)
       ..dispose();
+    widget.controller.removeListener(_onControllerChanged);
     _scrollController.dispose();
     super.dispose();
   }
+
+  void _onControllerChanged() => _scrollToEnd();
 
   void _onInputChanged() {
     final text = _inputController.text;
@@ -106,8 +112,10 @@ class _AssistantPageState extends State<AssistantPage> {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
+      final target = _scrollController.position.maxScrollExtent;
+      if ((target - _scrollController.position.pixels).abs() < 0.5) return;
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+        target,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
       );
@@ -121,7 +129,6 @@ class _AssistantPageState extends State<AssistantPage> {
       widget.providerController,
     ]),
     builder: (context, _) {
-      _scrollToEnd();
       final providers = widget.providerController.textSettings.providers
           .where((value) => value.enabled)
           .toList(growable: false);
@@ -370,7 +377,13 @@ class _MessageBubble extends StatelessWidget {
                     .toList(growable: false),
               ),
             if (message.content.isNotEmpty)
-              SelectionArea(child: Text(message.content)),
+              user
+                  ? SelectionArea(child: Text(message.content))
+                  : MarkdownBody(
+                      key: Key('assistant_markdown_${message.id}'),
+                      data: message.content,
+                      selectable: true,
+                    ),
             if (message.isStreaming) ...[
               const SizedBox(height: 8),
               const SizedBox(
@@ -391,6 +404,27 @@ class _MessageBubble extends StatelessWidget {
               Text(
                 '${message.providerId} · ${message.modelId}',
                 style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ],
+            if (!user && message.content.isNotEmpty) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  key: Key('assistant_copy_${message.id}'),
+                  tooltip: '复制回复',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: message.content),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('已复制回复')));
+                  },
+                  icon: const Icon(Icons.copy_outlined, size: 18),
+                ),
               ),
             ],
           ],

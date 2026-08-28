@@ -291,15 +291,18 @@ class AppShellState extends State<AppShell> {
         }
 
         return Scaffold(
-          body: body,
-          floatingActionButton: FloatingActionButton(
-            key: const Key('record_entry'),
-            heroTag: 'shell_record_fab',
-            tooltip: l10n.startRecordingTooltip,
-            onPressed: openRecordingEntry,
-            child: const Icon(Icons.fiber_manual_record),
+          body: Stack(
+            children: [
+              body,
+              Positioned.fill(
+                child: _DraggableRecordEntry(
+                  bottomInset: _session.tab == ShellTab.assistant ? 96 : 16,
+                  tooltip: l10n.startRecordingTooltip,
+                  onPressed: openRecordingEntry,
+                ),
+              ),
+            ],
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: NavigationBar(
             selectedIndex: _session.tab.index,
             onDestinationSelected: _session.selectTabIndex,
@@ -326,4 +329,74 @@ class AppShellState extends State<AppShell> {
       _ => '正在录音',
     };
   }
+}
+
+class _DraggableRecordEntry extends StatefulWidget {
+  const _DraggableRecordEntry({
+    required this.bottomInset,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final double bottomInset;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  State<_DraggableRecordEntry> createState() => _DraggableRecordEntryState();
+}
+
+class _DraggableRecordEntryState extends State<_DraggableRecordEntry> {
+  static const _buttonSize = 56.0;
+  static const _edgeInset = 16.0;
+  Offset? _position;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final maxX = (constraints.maxWidth - _buttonSize - _edgeInset)
+          .clamp(0.0, double.infinity)
+          .toDouble();
+      final maxY = (constraints.maxHeight - _buttonSize - _edgeInset)
+          .clamp(0.0, double.infinity)
+          .toDouble();
+      final defaultPosition = Offset(
+        maxX,
+        (constraints.maxHeight - _buttonSize - widget.bottomInset)
+            .clamp(0.0, maxY)
+            .toDouble(),
+      );
+      final position = Offset(
+        (_position ?? defaultPosition).dx.clamp(0.0, maxX).toDouble(),
+        (_position ?? defaultPosition).dy.clamp(0.0, maxY).toDouble(),
+      );
+
+      return Stack(
+        children: [
+          Positioned(
+            left: position.dx,
+            top: position.dy,
+            child: GestureDetector(
+              onPanUpdate: (details) {
+                final next = (_position ?? defaultPosition) + details.delta;
+                setState(() {
+                  _position = Offset(
+                    next.dx.clamp(0.0, maxX).toDouble(),
+                    next.dy.clamp(0.0, maxY).toDouble(),
+                  );
+                });
+              },
+              child: FloatingActionButton(
+                key: const Key('record_entry'),
+                heroTag: 'shell_record_fab',
+                tooltip: widget.tooltip,
+                onPressed: widget.onPressed,
+                child: const Icon(Icons.fiber_manual_record),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

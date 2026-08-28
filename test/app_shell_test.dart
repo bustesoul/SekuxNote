@@ -44,6 +44,18 @@ void main() {
       tester.state<AppShellState>(find.byType(AppShell)).currentTab,
       ShellTab.assistant,
     );
+    final recordEntry = find.byKey(const Key('record_entry'));
+    expect(recordEntry, findsOneWidget);
+    expect(
+      tester.getRect(recordEntry).bottom,
+      lessThanOrEqualTo(
+        tester.getRect(find.byKey(const Key('assistant_send'))).top,
+      ),
+    );
+    final initialRecordEntryTopLeft = tester.getTopLeft(recordEntry);
+    await tester.drag(recordEntry, const Offset(-80, -80));
+    await tester.pump();
+    expect(tester.getTopLeft(recordEntry), isNot(initialRecordEntryTopLeft));
 
     await tester.tap(find.text(l10n.tabRecords));
     await tester.pumpAndSettle();
