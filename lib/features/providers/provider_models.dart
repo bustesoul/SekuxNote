@@ -24,6 +24,14 @@ enum TranscriptionFileMode { precision, fast }
 
 enum TranscriptionTaskStatus { queued, running, succeeded, failed, stopped }
 
+enum TranscriptionProgressStage {
+  uploading,
+  providerProcessing,
+  generatingText,
+  receivingText,
+  completed,
+}
+
 enum TranscriptionTaskChunkStatus {
   pending,
   running,
@@ -116,7 +124,8 @@ class TranscriptionTask {
 
   bool get isTerminal =>
       status == TranscriptionTaskStatus.succeeded ||
-      status == TranscriptionTaskStatus.failed;
+      status == TranscriptionTaskStatus.failed ||
+      status == TranscriptionTaskStatus.stopped;
 
   TranscriptionTask copyWith({
     TranscriptionTaskStatus? status,

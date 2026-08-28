@@ -365,82 +365,220 @@ void main() {
     expect(result.usage['duration'], 1);
   });
 
-  test('Gemini 3.5 Transcribe posts Interactions payload and word speakers', () async {
-    late http.BaseRequest captured;
-    final client = OpenAiApiClient(
-      client: MockClient((request) async {
-        captured = request;
-        return http.Response(
-          jsonEncode({
-            'output_text': 'Hello world',
-            'usage': {'total_tokens': 12},
-            'steps': [
-              {
-                'type': 'model_output',
-                'content': [
-                  {
-                    'type': 'text',
-                    'text': 'Hello world',
-                    'annotations': [
-                      {
-                        'type': 'word_info',
-                        'text': 'Hello',
-                        'speaker': 'spk_1',
-                        'start_offset': '0.100s',
-                        'end_offset': '0.450s',
-                      },
-                      {
-                        'type': 'word_info',
-                        'text': 'world',
-                        'speaker': 'spk_2',
-                        'start_offset': '0.500s',
-                        'end_offset': '0.850s',
-                      },
-                    ],
-                  },
-                ],
+  test(
+    'Gemini 3.5 Transcribe posts Interactions payload and word speakers',
+    () async {
+      late http.BaseRequest captured;
+      final client = OpenAiApiClient(
+        client: MockClient((request) async {
+          captured = request;
+          return http.Response(
+            jsonEncode({
+              'output_text': 'Hello world',
+              'usage': {'total_tokens': 12},
+              'steps': [
+                {
+                  'type': 'model_output',
+                  'content': [
+                    {
+                      'type': 'text',
+                      'text': 'Hello world',
+                      'annotations': [
+                        {
+                          'type': 'word_info',
+                          'text': 'Hello',
+                          'speaker': 'spk_1',
+                          'start_offset': '0.100s',
+                          'end_offset': '0.450s',
+                        },
+                        {
+                          'type': 'word_info',
+                          'text': 'world',
+                          'speaker': 'spk_2',
+                          'start_offset': '0.500s',
+                          'end_offset': '0.850s',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      addTearDown(client.close);
+
+      final result = await client.transcribe(
+        config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
+        apiKey: 'gemini-test-key',
+        file: SelectedAudioFile(
+          name: 'meeting.wav',
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        options: const TranscriptionRequestOptions(
+          language: 'zh',
+          diarizationEnabled: true,
+        ),
+      );
+
+      expect(captured.url.path, '/v1beta/interactions');
+      expect(captured.headers['x-goog-api-key'], 'gemini-test-key');
+      expect(captured.headers['accept'], 'text/event-stream');
+      final body =
+          jsonDecode(utf8.decode((captured as http.Request).bodyBytes))
+              as Map<String, Object?>;
+      expect(body['model'], 'gemini-3.5-transcribe');
+      expect(body['stream'], isTrue);
+      expect(body['input'], isA<List>());
+      final audio = (body['input'] as List).first as Map;
+      expect(audio['type'], 'audio');
+      expect(audio['mime_type'], 'audio/wav');
+      expect(audio['data'], isNotEmpty);
+      final mode =
+          (((body['generation_config'] as Map)['transcription_config']
+                  as Map)['mode']
+              as Map);
+      expect(mode['type'], 'verbatim');
+      expect(mode['diarization_mode'], 'speaker');
+      expect(mode['timestamp_granularities'], ['word']);
+      expect(result.text, 'Hello world');
+      expect(result.segments, hasLength(2));
+      expect(result.segments.first.speakerId, 1);
+      expect(result.segments.last.speakerId, 2);
+      expect(
+        result.segments.first.words.single.startSeconds,
+        closeTo(0.1, 0.001),
+      );
+    },
+  );
+
+  test(
+    'Gemini Interactions streams stages and cumulative transcript',
+    () async {
+      final requests = <http.BaseRequest>[];
+      final stages = <TranscriptionProgressStage>[];
+      final partials = <String>[];
+      final client = OpenAiApiClient(
+        client: MockClient((request) async {
+          requests.add(request);
+          if (request.method == 'GET') {
+            return http.Response.bytes(
+              utf8.encode(
+                jsonEncode({
+                  'id': 'v1_test',
+                  'status': 'completed',
+                  'output_text': '你好世界',
+                  'steps': [
+                    {
+                      'type': 'model_output',
+                      'content': [
+                        {
+                          'type': 'text',
+                          'text': '你好世界',
+                          'annotations': [
+                            {
+                              'type': 'word_info',
+                              'text': '你好',
+                              'speaker': 'spk_1',
+                              'start_offset': '0.000s',
+                              'end_offset': '0.500s',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                }),
+              ),
+              200,
+              headers: const {
+                'content-type': 'application/json; charset=utf-8',
               },
-            ],
-          }),
-          200,
-        );
-      }),
-    );
-    addTearDown(client.close);
+            );
+          }
+          final events = [
+            'event: interaction.created',
+            'data: ${jsonEncode({
+              'event_type': 'interaction.created',
+              'interaction': {'id': 'v1_test', 'status': 'in_progress'},
+            })}',
+            '',
+            'event: step.start',
+            'data: ${jsonEncode({
+              'event_type': 'step.start',
+              'index': 0,
+              'step': {'type': 'model_output'},
+            })}',
+            '',
+            'event: step.delta',
+            'data: ${jsonEncode({
+              'event_type': 'step.delta',
+              'index': 0,
+              'delta': {'type': 'text', 'text': '你好'},
+            })}',
+            '',
+            'event: step.delta',
+            'data: ${jsonEncode({
+              'event_type': 'step.delta',
+              'index': 0,
+              'delta': {'type': 'text', 'text': '世界'},
+            })}',
+            '',
+            'event: interaction.completed',
+            'data: ${jsonEncode({
+              'event_type': 'interaction.completed',
+              'interaction': {
+                'id': 'v1_test',
+                'status': 'completed',
+                'usage': {'total_tokens': 10},
+              },
+            })}',
+            '',
+            'event: done',
+            'data: [DONE]',
+            '',
+          ].join('\n');
+          return http.Response.bytes(
+            utf8.encode(events),
+            200,
+            headers: const {'content-type': 'text/event-stream'},
+          );
+        }),
+      );
+      addTearDown(client.close);
 
-    final result = await client.transcribe(
-      config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
-      apiKey: 'gemini-test-key',
-      file: SelectedAudioFile(name: 'meeting.wav', bytes: Uint8List.fromList([1, 2, 3])),
-      options: const TranscriptionRequestOptions(
-        language: 'zh',
-        diarizationEnabled: true,
-      ),
-    );
+      final result = await client.transcribe(
+        config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
+        apiKey: 'gemini-test-key',
+        file: SelectedAudioFile(
+          name: 'meeting.wav',
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        options: const TranscriptionRequestOptions(
+          language: 'zh',
+          diarizationEnabled: true,
+        ),
+        onStageChanged: stages.add,
+        onPartialText: partials.add,
+      );
 
-    expect(captured.url.path, '/v1beta/interactions');
-    expect(captured.headers['x-goog-api-key'], 'gemini-test-key');
-    final body = jsonDecode(utf8.decode((captured as http.Request).bodyBytes))
-        as Map<String, Object?>;
-    expect(body['model'], 'gemini-3.5-transcribe');
-    expect(body['input'], isA<List>());
-    final audio = (body['input'] as List).first as Map;
-    expect(audio['type'], 'audio');
-    expect(audio['mime_type'], 'audio/wav');
-    expect(audio['data'], isNotEmpty);
-    final mode =
-        (((body['generation_config'] as Map)['transcription_config']
-                as Map)['mode']
-            as Map);
-    expect(mode['type'], 'verbatim');
-    expect(mode['diarization_mode'], 'speaker');
-    expect(mode['timestamp_granularities'], ['word']);
-    expect(result.text, 'Hello world');
-    expect(result.segments, hasLength(2));
-    expect(result.segments.first.speakerId, 1);
-    expect(result.segments.last.speakerId, 2);
-    expect(result.segments.first.words.single.startSeconds, closeTo(0.1, 0.001));
-  });
+      expect(requests.map((request) => request.method), ['POST', 'GET']);
+      expect(requests.last.url.path, '/v1beta/interactions/v1_test');
+      expect(stages, [
+        TranscriptionProgressStage.uploading,
+        TranscriptionProgressStage.providerProcessing,
+        TranscriptionProgressStage.generatingText,
+        TranscriptionProgressStage.receivingText,
+        TranscriptionProgressStage.receivingText,
+      ]);
+      expect(partials, ['你好', '你好世界']);
+      expect(result.text, '你好世界');
+      expect(result.segments.single.speakerId, 1);
+      expect(result.usage['total_tokens'], 10);
+    },
+  );
 
   test('Gemini language auto maps to empty language_codes', () {
     expect(geminiLanguageCodes('auto'), isEmpty);
@@ -472,63 +610,66 @@ void main() {
     expect(mode.containsKey('diarization_mode'), isFalse);
   });
 
-  test('Gemini M4A uses audio/m4a and large files POST to the upload URL', () async {
-    expect(geminiMimeType('meeting.m4a'), 'audio/m4a');
-    final methods = <String>[];
-    final urls = <String>[];
-    final client = OpenAiApiClient(
-      geminiInlineLimitBytes: 2,
-      client: MockClient((request) async {
-        methods.add(request.method);
-        urls.add(request.url.path);
-        if (request.url.path.endsWith('upload/v1beta/files')) {
-          return http.Response(
-            '',
-            200,
-            headers: {
-              'x-goog-upload-url':
-                  'https://generativelanguage.googleapis.com/upload/session/1',
-            },
-          );
-        }
-        if (request.url.path == '/upload/session/1') {
-          expect(request.headers['x-goog-upload-command'], 'upload, finalize');
-          return http.Response(
-            jsonEncode({
-              'file': {
-                'name': 'files/abc',
-                'uri': 'https://generativelanguage.googleapis.com/files/abc',
-                'state': 'ACTIVE',
-                'mimeType': 'audio/m4a',
+  test(
+    'Gemini M4A uses audio/m4a and large files POST to the upload URL',
+    () async {
+      expect(geminiMimeType('meeting.m4a'), 'audio/m4a');
+      final methods = <String>[];
+      final urls = <String>[];
+      final client = OpenAiApiClient(
+        geminiInlineLimitBytes: 2,
+        client: MockClient((request) async {
+          methods.add(request.method);
+          urls.add(request.url.path);
+          if (request.url.path.endsWith('upload/v1beta/files')) {
+            return http.Response(
+              '',
+              200,
+              headers: {
+                'x-goog-upload-url':
+                    'https://generativelanguage.googleapis.com/upload/session/1',
               },
-            }),
-            200,
-          );
-        }
-        return http.Response(
-          jsonEncode({'output_text': 'uploaded'}),
-          200,
-        );
-      }),
-    );
-    addTearDown(client.close);
+            );
+          }
+          if (request.url.path == '/upload/session/1') {
+            expect(
+              request.headers['x-goog-upload-command'],
+              'upload, finalize',
+            );
+            return http.Response(
+              jsonEncode({
+                'file': {
+                  'name': 'files/abc',
+                  'uri': 'https://generativelanguage.googleapis.com/files/abc',
+                  'state': 'ACTIVE',
+                  'mimeType': 'audio/m4a',
+                },
+              }),
+              200,
+            );
+          }
+          return http.Response(jsonEncode({'output_text': 'uploaded'}), 200);
+        }),
+      );
+      addTearDown(client.close);
 
-    final result = await client.transcribe(
-      config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
-      apiKey: 'gemini-test-key',
-      file: SelectedAudioFile(
-        name: 'meeting.m4a',
-        bytes: Uint8List.fromList([1, 2, 3]),
-      ),
-      options: const TranscriptionRequestOptions(language: 'zh'),
-    );
+      final result = await client.transcribe(
+        config: TranscriptionProviderConfig.geminiDefaults(id: 'gemini'),
+        apiKey: 'gemini-test-key',
+        file: SelectedAudioFile(
+          name: 'meeting.m4a',
+          bytes: Uint8List.fromList([1, 2, 3]),
+        ),
+        options: const TranscriptionRequestOptions(language: 'zh'),
+      );
 
-    expect(result.text, 'uploaded');
-    expect(methods, ['POST', 'POST', 'POST']);
-    expect(urls[0], '/upload/v1beta/files');
-    expect(urls[1], '/upload/session/1');
-    expect(urls[2], '/v1beta/interactions');
-  });
+      expect(result.text, 'uploaded');
+      expect(methods, ['POST', 'POST', 'POST']);
+      expect(urls[0], '/upload/v1beta/files');
+      expect(urls[1], '/upload/session/1');
+      expect(urls[2], '/v1beta/interactions');
+    },
+  );
 
   test(
     'FR-IMP macOS file picker entitlement failure has a local explanation',

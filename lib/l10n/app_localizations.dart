@@ -328,18 +328,6 @@ abstract class AppLocalizations {
   /// **'Background demo task · {seconds}s · tap to open AI Assistant'**
   String demoTaskBanner(int seconds);
 
-  /// No description provided for @keepAliveCounterLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Tab-local counter (IndexedStack keep-alive)'**
-  String get keepAliveCounterLabel;
-
-  /// No description provided for @keepAliveIncrement.
-  ///
-  /// In en, this message translates to:
-  /// **'Increment'**
-  String get keepAliveIncrement;
-
   /// No description provided for @recordsTranscribeAudio.
   ///
   /// In en, this message translates to:
@@ -500,6 +488,52 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uploading and transcribing…'**
   String get transcriptionUploading;
+
+  /// No description provided for @transcriptionStageUploading.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading…'**
+  String get transcriptionStageUploading;
+
+  /// No description provided for @transcriptionStageProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'{provider} is processing…'**
+  String transcriptionStageProcessing(String provider);
+
+  /// No description provided for @transcriptionStageGenerating.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating transcript…'**
+  String get transcriptionStageGenerating;
+
+  /// No description provided for @transcriptionStageReceiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Received {characters} characters'**
+  String transcriptionStageReceiving(int characters);
+
+  /// No description provided for @transcriptionStageCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get transcriptionStageCompleted;
+
+  /// No description provided for @transcriptionStageWithChunks.
+  ///
+  /// In en, this message translates to:
+  /// **'{stage} · {completed}/{total} chunks'**
+  String transcriptionStageWithChunks(String stage, int completed, int total);
+
+  /// No description provided for @transcriptionProgressBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{fileName} · {stage} · {elapsedSeconds}s'**
+  String transcriptionProgressBanner(
+    String fileName,
+    String stage,
+    int elapsedSeconds,
+  );
 
   /// No description provided for @providerChunkDurationLabel.
   ///

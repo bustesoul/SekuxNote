@@ -515,6 +515,7 @@ class ProviderController extends ChangeNotifier {
     TranscriptionFileMode fileMode = TranscriptionFileMode.precision,
     bool smartFormatting = false,
     void Function({required int total, required int completed})? onProgress,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
     void Function(String text)? onPartialText,
   }) async {
     final config = transcriptionProviderById(
@@ -554,6 +555,7 @@ class ProviderController extends ChangeNotifier {
         task,
         file,
         onProgress: onProgress,
+        onStageChanged: onStageChanged,
         onPartialText: onPartialText,
       );
     } catch (error) {
@@ -625,6 +627,7 @@ class ProviderController extends ChangeNotifier {
     TranscriptionTask task,
     SelectedAudioFile source, {
     void Function({required int total, required int completed})? onProgress,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
     void Function(String text)? onPartialText,
   }) async {
     if (source.name.toLowerCase().endsWith('.wav') &&
@@ -706,6 +709,7 @@ class ProviderController extends ChangeNotifier {
             config: config,
             apiKey: key,
             onProgress: onProgress,
+            onStageChanged: onStageChanged,
             onPartialText: onPartialText,
             onResult: (result) {
               final offset = chunk.index * config.chunkDurationSeconds;
@@ -798,6 +802,7 @@ class ProviderController extends ChangeNotifier {
     required TranscriptionProviderConfig config,
     required String apiKey,
     void Function({required int total, required int completed})? onProgress,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
     void Function(TranscriptionResult result)? onResult,
     void Function(String text)? onPartialText,
   }) async {
@@ -816,6 +821,9 @@ class ProviderController extends ChangeNotifier {
       );
       await _taskStore.updateChunk(current);
       try {
+        if (config.type != TranscriptionProviderType.geminiTranscribe) {
+          onStageChanged?.call(TranscriptionProgressStage.providerProcessing);
+        }
         final result = await _apiClient.transcribe(
           config: config,
           apiKey: apiKey,
@@ -826,6 +834,7 @@ class ProviderController extends ChangeNotifier {
             speakerCount: task.speakerCount,
             smartFormatting: task.smartFormatting,
           ),
+          onStageChanged: onStageChanged,
           onPartialText: (text) {
             onPartialText?.call(text);
             unawaited(_taskStore.updateChunk(current.copyWith(text: text)));

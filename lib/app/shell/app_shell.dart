@@ -11,6 +11,7 @@ import '../../features/recording/recording_session_controller.dart';
 import '../../features/settings/pages/settings_page.dart';
 import '../../features/providers/pages/transcription_workbench_page.dart';
 import '../../features/providers/provider_controller.dart';
+import '../../features/providers/transcription_progress_label.dart';
 import '../../l10n/app_localizations.dart';
 import 'app_session_controller.dart';
 import 'shell_tab.dart';
@@ -238,12 +239,7 @@ class AppShellState extends State<AppShell> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          l10n.transcriptionTaskBanner(
-                            _session.transcriptionFileName,
-                            _session.transcriptionChunksCompleted,
-                            _session.transcriptionChunksTotal,
-                            _session.transcriptionElapsedSeconds,
-                          ),
+                          transcriptionProgressDescription(l10n, _session),
                         ),
                       ),
                     ],

@@ -9,6 +9,7 @@ import '../provider_debug_log.dart';
 import '../provider_error_message.dart';
 import '../provider_models.dart';
 import '../openai_api_client.dart';
+import '../transcription_progress_label.dart';
 
 class TranscriptionWorkbenchPage extends StatefulWidget {
   const TranscriptionWorkbenchPage({
@@ -153,7 +154,8 @@ class _TranscriptionWorkbenchPageState
     if (confirmed != true) return;
 
     setState(() => _busy = true);
-    widget.session.startTranscription(file.name);
+    widget.session.startTranscription(file.name, providerName: _provider.name);
+    var completed = false;
     try {
       final task = await widget.controller.startTranscriptionTask(
         file,
@@ -178,15 +180,18 @@ class _TranscriptionWorkbenchPageState
             completed: completed,
           );
         },
+        onStageChanged: widget.session.updateTranscriptionStage,
         onPartialText: widget.session.updateTranscriptionPartialText,
       );
+      completed = task.status == TranscriptionTaskStatus.succeeded;
+      if (completed) widget.session.completeTranscription();
       if (mounted) setState(() => _task = task);
     } catch (error) {
       if (mounted) {
         _showError(providerErrorMessage(AppLocalizations.of(context), error));
       }
     } finally {
-      widget.session.finishTranscription();
+      if (!completed) widget.session.finishTranscription();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -357,9 +362,7 @@ class _TranscriptionWorkbenchPageState
                               if (value) _diarizationEnabled = false;
                             }),
                       title: const Text('Smart 转写'),
-                      subtitle: const Text(
-                        '去掉口头禅、自动标点和结构化。不可与说话人/词级时间戳同时使用。',
-                      ),
+                      subtitle: const Text('去掉口头禅、自动标点和结构化。不可与说话人/词级时间戳同时使用。'),
                     ),
                     SwitchListTile(
                       key: const Key('transcription_gemini_diarization'),
@@ -400,11 +403,9 @@ class _TranscriptionWorkbenchPageState
                           const LinearProgressIndicator(),
                           const SizedBox(height: 8),
                           Text(
-                            l10n.transcriptionTaskBanner(
-                              widget.session.transcriptionFileName,
-                              widget.session.transcriptionChunksCompleted,
-                              widget.session.transcriptionChunksTotal,
-                              widget.session.transcriptionElapsedSeconds,
+                            transcriptionProgressDescription(
+                              l10n,
+                              widget.session,
                             ),
                           ),
                           if (widget

@@ -135,13 +135,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get keepAliveCounterLabel =>
-      'Tab-local counter (IndexedStack keep-alive)';
-
-  @override
-  String get keepAliveIncrement => 'Increment';
-
-  @override
   String get recordsTranscribeAudio => 'Transcribe audio file';
 
   @override
@@ -229,6 +222,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transcriptionUploading => 'Uploading and transcribing…';
+
+  @override
+  String get transcriptionStageUploading => 'Uploading…';
+
+  @override
+  String transcriptionStageProcessing(String provider) {
+    return '$provider is processing…';
+  }
+
+  @override
+  String get transcriptionStageGenerating => 'Generating transcript…';
+
+  @override
+  String transcriptionStageReceiving(int characters) {
+    return 'Received $characters characters';
+  }
+
+  @override
+  String get transcriptionStageCompleted => 'Completed';
+
+  @override
+  String transcriptionStageWithChunks(String stage, int completed, int total) {
+    return '$stage · $completed/$total chunks';
+  }
+
+  @override
+  String transcriptionProgressBanner(
+    String fileName,
+    String stage,
+    int elapsedSeconds,
+  ) {
+    return '$fileName · $stage · ${elapsedSeconds}s';
+  }
 
   @override
   String get providerChunkDurationLabel => 'Chunk duration (seconds)';

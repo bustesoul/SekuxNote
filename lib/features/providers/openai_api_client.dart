@@ -175,6 +175,7 @@ class OpenAiApiClient {
     required String apiKey,
     required SelectedAudioFile file,
     TranscriptionRequestOptions? options,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
     void Function(String text)? onPartialText,
     Future<void> Function(String taskId)? onRemoteTaskCreated,
   }) {
@@ -207,6 +208,8 @@ class OpenAiApiClient {
         apiKey: apiKey,
         file: file,
         options: requestOptions,
+        onStageChanged: onStageChanged,
+        onPartialText: onPartialText,
       ),
     };
   }
@@ -394,7 +397,10 @@ class OpenAiApiClient {
     required String apiKey,
     required SelectedAudioFile file,
     required TranscriptionRequestOptions options,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
+    void Function(String text)? onPartialText,
   }) async {
+    onStageChanged?.call(TranscriptionProgressStage.uploading);
     await ProviderDebugLog.record(
       'gemini_transcription.start',
       details: {'model': config.batchModel, 'fileBytes': file.sizeBytes},
@@ -420,7 +426,7 @@ class OpenAiApiClient {
         'mime_type': uploaded['mime_type'] ?? mimeType,
       };
     }
-    final response = await _sendGeminiJson(
+    final body = await _sendGeminiJson(
       uri: _geminiEndpoint(config.baseUrl, 'v1beta/interactions'),
       apiKey: apiKey,
       body: {
@@ -430,8 +436,9 @@ class OpenAiApiClient {
           'transcription_config': geminiTranscriptionConfig(options),
         },
       },
+      onStageChanged: onStageChanged,
+      onPartialText: onPartialText,
     );
-    final body = _decodeJson(response.body);
     final parsed = parseGeminiTranscription(body);
     if (parsed.text.trim().isEmpty && parsed.segments.isEmpty) {
       throw const ProviderRequestException('invalidProviderResponse');
@@ -536,34 +543,162 @@ class OpenAiApiClient {
     };
   }
 
-  Future<http.Response> _sendGeminiJson({
+  Future<Map<String, Object?>> _sendGeminiJson({
     required Uri uri,
     required String apiKey,
     required Map<String, Object?> body,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
+    void Function(String text)? onPartialText,
+  }) => _sendGeminiJsonStream(
+    uri: uri,
+    apiKey: apiKey,
+    body: body,
+    onStageChanged: onStageChanged,
+    onPartialText: onPartialText,
+  ).timeout(_transcriptionTimeout);
+
+  Future<Map<String, Object?>> _sendGeminiJsonStream({
+    required Uri uri,
+    required String apiKey,
+    required Map<String, Object?> body,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
+    void Function(String text)? onPartialText,
   }) async {
-    final response = await _client
-        .post(
-          uri,
-          headers: {
-            'x-goog-api-key': apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(body),
-        )
-        .timeout(_transcriptionTimeout);
+    final request = http.Request('POST', uri)
+      ..headers.addAll({
+        'x-goog-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      })
+      ..body = jsonEncode({...body, 'stream': true});
+    final response = await _client.send(request);
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final responseBody = await response.stream.bytesToString();
       await ProviderDebugLog.record(
         'provider_request.failure',
         details: {
           'stage': 'gemini.interactions',
           'host': uri.host,
           'statusCode': response.statusCode,
-          'error': _responseDiagnostic(response.body),
+          'error': _responseDiagnostic(responseBody),
         },
       );
+      _ensureStatusCode(response.statusCode);
     }
-    _ensureSuccess(response);
-    return response;
+    onStageChanged?.call(TranscriptionProgressStage.providerProcessing);
+
+    final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+    if (!contentType.contains('text/event-stream')) {
+      final responseBody = await response.stream.bytesToString();
+      final decoded = _decodeJson(responseBody);
+      _publishGeminiText(
+        decoded,
+        previousText: '',
+        onStageChanged: onStageChanged,
+        onPartialText: onPartialText,
+      );
+      return decoded;
+    }
+
+    var streamedText = '';
+    String? interactionId;
+    var completedInteraction = const <String, Object?>{};
+    await for (final line
+        in response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())) {
+      if (!line.startsWith('data:')) continue;
+      final data = line.substring(5).trim();
+      if (data.isEmpty || data == '[DONE]') continue;
+      final event = _decodeJson(data);
+      final eventType = event['event_type'] as String? ?? '';
+      if (eventType == 'interaction.created') {
+        final interaction = _map(event['interaction']);
+        interactionId = interaction['id'] as String? ?? interactionId;
+      } else if (eventType == 'step.start') {
+        if (_map(event['step'])['type'] == 'model_output') {
+          onStageChanged?.call(TranscriptionProgressStage.generatingText);
+        }
+      } else if (eventType == 'step.delta') {
+        final delta = _map(event['delta']);
+        if (delta['type'] == 'text') {
+          final text = delta['text'] as String? ?? '';
+          if (text.isNotEmpty) {
+            streamedText += text;
+            onStageChanged?.call(TranscriptionProgressStage.receivingText);
+            onPartialText?.call(streamedText);
+          }
+        }
+      } else if (eventType == 'interaction.completed') {
+        completedInteraction = _map(event['interaction']);
+        interactionId = completedInteraction['id'] as String? ?? interactionId;
+      } else if (eventType == 'error') {
+        await ProviderDebugLog.record(
+          'provider_request.failure',
+          details: {
+            'stage': 'gemini.interactions_stream',
+            'host': uri.host,
+            'error': _responseDiagnostic(jsonEncode(event['error'])),
+          },
+        );
+        throw const ProviderRequestException('requestFailed');
+      }
+    }
+
+    var result = completedInteraction;
+    if (interactionId != null && interactionId.isNotEmpty) {
+      final detail = await _loadGeminiInteraction(
+        baseUri: uri,
+        apiKey: apiKey,
+        interactionId: interactionId,
+      );
+      if (detail.isNotEmpty) result = {...completedInteraction, ...detail};
+    }
+    if (streamedText.isNotEmpty &&
+        (result['output_text'] as String? ?? '').trim().isEmpty) {
+      result = {...result, 'output_text': streamedText};
+    }
+    _publishGeminiText(
+      result,
+      previousText: streamedText,
+      onStageChanged: onStageChanged,
+      onPartialText: onPartialText,
+    );
+    return result;
+  }
+
+  Future<Map<String, Object?>> _loadGeminiInteraction({
+    required Uri baseUri,
+    required String apiKey,
+    required String interactionId,
+  }) async {
+    try {
+      final detailUri = baseUri.replace(
+        path: '${baseUri.path}/${Uri.encodeComponent(interactionId)}',
+        query: null,
+      );
+      final response = await _client
+          .get(detailUri, headers: {'x-goog-api-key': apiKey})
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return const {};
+      }
+      return _decodeJson(response.body);
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  void _publishGeminiText(
+    Map<String, Object?> body, {
+    required String previousText,
+    void Function(TranscriptionProgressStage stage)? onStageChanged,
+    void Function(String text)? onPartialText,
+  }) {
+    final text = parseGeminiTranscription(body).text;
+    if (text.trim().isEmpty || text == previousText) return;
+    onStageChanged?.call(TranscriptionProgressStage.receivingText);
+    onPartialText?.call(text);
   }
 
   Uri _geminiEndpoint(String baseUrl, String path) {
@@ -1235,10 +1370,7 @@ Map<String, Object?> geminiTranscriptionConfig(
 }
 
 class GeminiTranscriptionParse {
-  const GeminiTranscriptionParse({
-    required this.text,
-    required this.segments,
-  });
+  const GeminiTranscriptionParse({required this.text, required this.segments});
 
   final String text;
   final List<TranscriptionSegment> segments;
@@ -1296,9 +1428,8 @@ GeminiTranscriptionParse parseGeminiTranscription(Map<String, Object?> body) {
   }
 
   walk(body['steps'] ?? body['output'] ?? body);
-  final outputText = body['output_text'] as String? ??
-      body['outputText'] as String? ??
-      '';
+  final outputText =
+      body['output_text'] as String? ?? body['outputText'] as String? ?? '';
   final text = outputText.trim().isNotEmpty
       ? outputText
       : textParts.join().trim();
@@ -1307,13 +1438,7 @@ GeminiTranscriptionParse parseGeminiTranscription(Map<String, Object?> body) {
       text: text,
       segments: text.trim().isEmpty
           ? const []
-          : [
-              TranscriptionSegment(
-                startSeconds: 0,
-                endSeconds: 0,
-                text: text,
-              ),
-            ],
+          : [TranscriptionSegment(startSeconds: 0, endSeconds: 0, text: text)],
     );
   }
   return GeminiTranscriptionParse(

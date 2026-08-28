@@ -128,12 +128,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get keepAliveCounterLabel => '页内计数（IndexedStack 保活）';
-
-  @override
-  String get keepAliveIncrement => '加一';
-
-  @override
   String get recordsTranscribeAudio => '转写音频文件';
 
   @override
@@ -219,6 +213,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get transcriptionUploading => '正在上传并转写…';
+
+  @override
+  String get transcriptionStageUploading => '上传中…';
+
+  @override
+  String transcriptionStageProcessing(String provider) {
+    return '$provider 执行中…';
+  }
+
+  @override
+  String get transcriptionStageGenerating => '已开始生成文本…';
+
+  @override
+  String transcriptionStageReceiving(int characters) {
+    return '已接收 $characters 字';
+  }
+
+  @override
+  String get transcriptionStageCompleted => '完成';
+
+  @override
+  String transcriptionStageWithChunks(String stage, int completed, int total) {
+    return '$stage · 分片 $completed/$total';
+  }
+
+  @override
+  String transcriptionProgressBanner(
+    String fileName,
+    String stage,
+    int elapsedSeconds,
+  ) {
+    return '$fileName · $stage · 已等待 $elapsedSeconds 秒';
+  }
 
   @override
   String get providerChunkDurationLabel => '分片时长（秒）';
@@ -584,12 +611,6 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
   }
 
   @override
-  String get keepAliveCounterLabel => '页内计数（IndexedStack 保活）';
-
-  @override
-  String get keepAliveIncrement => '加一';
-
-  @override
   String get recordsTranscribeAudio => '转写音频文件';
 
   @override
@@ -675,6 +696,39 @@ class AppLocalizationsZhHans extends AppLocalizationsZh {
 
   @override
   String get transcriptionUploading => '正在上传并转写…';
+
+  @override
+  String get transcriptionStageUploading => '上传中…';
+
+  @override
+  String transcriptionStageProcessing(String provider) {
+    return '$provider 执行中…';
+  }
+
+  @override
+  String get transcriptionStageGenerating => '已开始生成文本…';
+
+  @override
+  String transcriptionStageReceiving(int characters) {
+    return '已接收 $characters 字';
+  }
+
+  @override
+  String get transcriptionStageCompleted => '完成';
+
+  @override
+  String transcriptionStageWithChunks(String stage, int completed, int total) {
+    return '$stage · 分片 $completed/$total';
+  }
+
+  @override
+  String transcriptionProgressBanner(
+    String fileName,
+    String stage,
+    int elapsedSeconds,
+  ) {
+    return '$fileName · $stage · 已等待 $elapsedSeconds 秒';
+  }
 
   @override
   String get providerChunkDurationLabel => '分片时长（秒）';
@@ -1040,12 +1094,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get keepAliveCounterLabel => '頁內計數（IndexedStack 保活）';
-
-  @override
-  String get keepAliveIncrement => '加一';
-
-  @override
   String get recordsTranscribeAudio => '轉寫音訊檔案';
 
   @override
@@ -1131,6 +1179,39 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get transcriptionUploading => '正在上傳並轉寫…';
+
+  @override
+  String get transcriptionStageUploading => '上傳中…';
+
+  @override
+  String transcriptionStageProcessing(String provider) {
+    return '$provider 執行中…';
+  }
+
+  @override
+  String get transcriptionStageGenerating => '已開始產生文字…';
+
+  @override
+  String transcriptionStageReceiving(int characters) {
+    return '已接收 $characters 字';
+  }
+
+  @override
+  String get transcriptionStageCompleted => '完成';
+
+  @override
+  String transcriptionStageWithChunks(String stage, int completed, int total) {
+    return '$stage · 分片 $completed/$total';
+  }
+
+  @override
+  String transcriptionProgressBanner(
+    String fileName,
+    String stage,
+    int elapsedSeconds,
+  ) {
+    return '$fileName · $stage · 已等待 $elapsedSeconds 秒';
+  }
 
   @override
   String get providerChunkDurationLabel => '分片時長（秒）';

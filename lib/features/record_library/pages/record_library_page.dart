@@ -39,8 +39,6 @@ class RecordLibraryPage extends StatefulWidget {
 }
 
 class _RecordLibraryPageState extends State<RecordLibraryPage> {
-  /// Proves IndexedStack keep-alive for tab-local UI state (FR-NAV-004).
-  int _counter = 0;
   final _searchController = TextEditingController();
   String _query = '';
 
@@ -178,24 +176,6 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
                         textAlign: TextAlign.center,
                       ),
                     ],
-                    if (_isHome) ...[
-                      const SizedBox(height: 32),
-                      Text(
-                        l10n.keepAliveCounterLabel,
-                        style: theme.textTheme.labelMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$_counter',
-                        key: const Key('records_keep_alive_counter'),
-                        style: theme.textTheme.headlineMedium,
-                      ),
-                      TextButton(
-                        key: const Key('records_keep_alive_increment'),
-                        onPressed: () => setState(() => _counter += 1),
-                        child: Text(l10n.keepAliveIncrement),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -212,42 +192,176 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
     _RecordListItem item,
   ) {
     final task = item.transcriptionTask;
-    if (task != null) {
-      return Card(
-        child: ListTile(
-          key: Key('transcription_task_${task.id}'),
-          leading: Icon(_taskIcon(task.status)),
-          title: Text(task.fileName),
-          subtitle: Text(
-            '${_taskStatusLabel(l10n, task.status)} · '
-            '${task.chunksCompleted}/${task.chunksTotal == 0 ? '?' : task.chunksTotal}',
+    final canDelete = _canDelete(item);
+    final desktop =
+        MediaQuery.sizeOf(context).width >= 800 ||
+        switch (Theme.of(context).platform) {
+          TargetPlatform.macOS ||
+          TargetPlatform.windows ||
+          TargetPlatform.linux => true,
+          _ => false,
+        };
+    final card = task != null
+        ? Card(
+            child: ListTile(
+              key: Key('transcription_task_${task.id}'),
+              leading: Icon(_taskIcon(task.status)),
+              title: Text(task.fileName),
+              subtitle: Text(
+                '${_taskStatusLabel(l10n, task.status)} · '
+                '${task.chunksCompleted}/${task.chunksTotal == 0 ? '?' : task.chunksTotal}',
+              ),
+              trailing: desktop && canDelete
+                  ? _desktopDeleteMenu(context, l10n, item)
+                  : const Icon(Icons.chevron_right),
+              onTap: () => _showTaskDetails(context, task),
+            ),
+          )
+        : Card(
+            child: ListTile(
+              key: Key('recording_${item.recordingEntry!.id}'),
+              leading: Icon(
+                item.recordingEntry!.status == RecordingStatus.ready
+                    ? Icons.mic_none
+                    : item.recordingEntry!.status == RecordingStatus.recovered
+                    ? Icons.restore
+                    : Icons.error_outline,
+              ),
+              title: Text(item.recordingEntry!.title),
+              subtitle: Text(
+                '${_recordingStatus(item.recordingEntry!.status)} · '
+                '${_timeLabel(item.recordingEntry!.durationMilliseconds / 1000)}'
+                '${item.recordingEntry!.realtimeTranscript.isEmpty ? '' : ' · 有实时临时稿'}',
+              ),
+              trailing: desktop && canDelete
+                  ? _desktopDeleteMenu(context, l10n, item)
+                  : const Icon(Icons.chevron_right),
+              onTap: () => _showRecordingDetails(context, item.recordingEntry!),
+            ),
+          );
+    if (desktop || !canDelete) return card;
+    return Dismissible(
+      key: Key('record_dismiss_${item.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        await _confirmAndDeleteRecord(context, l10n, item);
+        return false;
+      },
+      background: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.only(right: 24),
+        alignment: Alignment.centerRight,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.delete_outline,
+          color: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+      ),
+      child: card,
+    );
+  }
+
+  Widget _desktopDeleteMenu(
+    BuildContext context,
+    AppLocalizations l10n,
+    _RecordListItem item,
+  ) {
+    final label = item.transcriptionTask != null
+        ? l10n.transcriptionTaskDelete
+        : l10n.recordingDelete;
+    return PopupMenuButton<_RecordMenuAction>(
+      key: Key('record_actions_${item.id}'),
+      tooltip: label,
+      onSelected: (_) =>
+          unawaited(_confirmAndDeleteRecord(context, l10n, item)),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          key: Key('record_action_delete_${item.id}'),
+          value: _RecordMenuAction.delete,
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(width: 12),
+              Text(label),
+            ],
           ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => _showTaskDetails(context, task),
+        ),
+      ],
+    );
+  }
+
+  bool _canDelete(_RecordListItem item) {
+    final task = item.transcriptionTask;
+    if (task != null) return task.isTerminal;
+    return widget.recordingController.active?.id != item.recordingEntry!.id;
+  }
+
+  Future<bool> _confirmAndDeleteRecord(
+    BuildContext pageContext,
+    AppLocalizations l10n,
+    _RecordListItem item,
+  ) async {
+    final task = item.transcriptionTask;
+    final confirmed = await showDialog<bool>(
+      context: pageContext,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          task != null
+              ? l10n.transcriptionTaskDeleteConfirmTitle
+              : l10n.recordingDeleteConfirmTitle,
+        ),
+        content: Text(
+          task != null
+              ? l10n.transcriptionTaskDeleteConfirmBody
+              : l10n.recordingDeleteConfirmBody,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              MaterialLocalizations.of(dialogContext).cancelButtonLabel,
+            ),
+          ),
+          FilledButton(
+            key: Key(
+              task != null
+                  ? 'transcription_task_delete_confirm_${task.id}'
+                  : 'recording_delete_confirm_${item.recordingEntry!.id}',
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              task != null
+                  ? l10n.transcriptionTaskDelete
+                  : l10n.recordingDelete,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+    if (task != null) {
+      await widget.providerController.deleteTranscriptionTask(task.id);
+    } else {
+      await widget.recordingController.deleteRecording(item.recordingEntry!.id);
+    }
+    if (pageContext.mounted) {
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(
+          content: Text(
+            task != null
+                ? l10n.transcriptionTaskDeleted
+                : l10n.recordingDeleted,
+          ),
         ),
       );
     }
-    final recording = item.recordingEntry!;
-    return Card(
-      child: ListTile(
-        key: Key('recording_${recording.id}'),
-        leading: Icon(
-          recording.status == RecordingStatus.ready
-              ? Icons.mic_none
-              : recording.status == RecordingStatus.recovered
-              ? Icons.restore
-              : Icons.error_outline,
-        ),
-        title: Text(recording.title),
-        subtitle: Text(
-          '${_recordingStatus(recording.status)} · '
-          '${_timeLabel(recording.durationMilliseconds / 1000)}'
-          '${recording.realtimeTranscript.isEmpty ? '' : ' · 有实时临时稿'}',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => _showRecordingDetails(context, recording),
-      ),
-    );
+    return true;
   }
 
   Future<void> _showTaskDetails(
@@ -356,36 +470,13 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
                   foregroundColor: Theme.of(sheetContext).colorScheme.error,
                 ),
                 onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: pageContext,
-                    builder: (dialogContext) => AlertDialog(
-                      title: Text(l10n.transcriptionTaskDeleteConfirmTitle),
-                      content: Text(l10n.transcriptionTaskDeleteConfirmBody),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext, false),
-                          child: Text(
-                            MaterialLocalizations.of(
-                              dialogContext,
-                            ).cancelButtonLabel,
-                          ),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(dialogContext, true),
-                          child: Text(l10n.transcriptionTaskDelete),
-                        ),
-                      ],
-                    ),
+                  final deleted = await _confirmAndDeleteRecord(
+                    pageContext,
+                    l10n,
+                    _RecordListItem.task(task),
                   );
-                  if (confirmed != true) return;
-                  await widget.providerController.deleteTranscriptionTask(
-                    task.id,
-                  );
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  if (pageContext.mounted) {
-                    ScaffoldMessenger.of(pageContext).showSnackBar(
-                      SnackBar(content: Text(l10n.transcriptionTaskDeleted)),
-                    );
+                  if (deleted && sheetContext.mounted) {
+                    Navigator.pop(sheetContext);
                   }
                 },
                 icon: const Icon(Icons.delete_outline),
@@ -435,37 +526,13 @@ class _RecordLibraryPageState extends State<RecordLibraryPage> {
                   foregroundColor: Theme.of(sheetContext).colorScheme.error,
                 ),
                 onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: pageContext,
-                    builder: (dialogContext) => AlertDialog(
-                      title: Text(l10n.recordingDeleteConfirmTitle),
-                      content: Text(l10n.recordingDeleteConfirmBody),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext, false),
-                          child: Text(
-                            MaterialLocalizations.of(
-                              dialogContext,
-                            ).cancelButtonLabel,
-                          ),
-                        ),
-                        FilledButton(
-                          key: Key('recording_delete_confirm_${recording.id}'),
-                          onPressed: () => Navigator.pop(dialogContext, true),
-                          child: Text(l10n.recordingDelete),
-                        ),
-                      ],
-                    ),
+                  final deleted = await _confirmAndDeleteRecord(
+                    pageContext,
+                    l10n,
+                    _RecordListItem.recording(recording),
                   );
-                  if (confirmed != true) return;
-                  await widget.recordingController.deleteRecording(
-                    recording.id,
-                  );
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  if (pageContext.mounted) {
-                    ScaffoldMessenger.of(pageContext).showSnackBar(
-                      SnackBar(content: Text(l10n.recordingDeleted)),
-                    );
+                  if (deleted && sheetContext.mounted) {
+                    Navigator.pop(sheetContext);
                   }
                 },
                 icon: const Icon(Icons.delete_outline),
@@ -600,8 +667,12 @@ class _RecordListItem {
   final TranscriptionTask? transcriptionTask;
   final RecordingEntry? recordingEntry;
 
+  String get id => transcriptionTask?.id ?? recordingEntry!.id;
+
   String get title => transcriptionTask?.fileName ?? recordingEntry!.title;
 
   DateTime get createdAt =>
       transcriptionTask?.createdAt ?? recordingEntry!.createdAt;
 }
+
+enum _RecordMenuAction { delete }

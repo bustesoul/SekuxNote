@@ -4,6 +4,7 @@ import 'package:sekuxnote/app/bootstrap/sekux_app.dart';
 import 'package:sekuxnote/app/shell/app_session_controller.dart';
 import 'package:sekuxnote/app/shell/app_shell.dart';
 import 'package:sekuxnote/app/shell/shell_tab.dart';
+import 'package:sekuxnote/features/providers/provider_models.dart';
 import 'package:sekuxnote/l10n/app_localizations.dart';
 
 void main() {
@@ -206,26 +207,6 @@ void main() {
     expect(find.byKey(const Key('transcription_choose_file')), findsOneWidget);
   });
 
-  testWidgets('FR-NAV-004 IndexedStack keeps tab-local counter', (
-    tester,
-  ) async {
-    final l10n = await pumpApp(tester);
-
-    await tester.tap(find.byKey(const Key('records_keep_alive_increment')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('records_keep_alive_increment')));
-    await tester.pump();
-    expect(find.text('2'), findsOneWidget);
-
-    await tester.tap(find.text(l10n.tabRecords));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('record_title_search')), findsOneWidget);
-    await tester.tap(find.text(l10n.tabHome));
-    await tester.pumpAndSettle();
-
-    expect(find.text('2'), findsOneWidget);
-  });
-
   testWidgets('FR-AI assistant state survives tab switches', (tester) async {
     final l10n = await pumpApp(tester);
 
@@ -273,9 +254,17 @@ void main() {
     final session = AppSessionController();
     addTearDown(session.dispose);
 
-    session.startTranscription('meeting.m4a');
+    session.startTranscription('meeting.m4a', providerName: 'Gemini');
     expect(session.transcriptionRunning, isTrue);
     expect(session.transcriptionFileName, 'meeting.m4a');
+    expect(session.transcriptionStage, TranscriptionProgressStage.uploading);
+
+    session.updateTranscriptionStage(TranscriptionProgressStage.generatingText);
+    session.updateTranscriptionPartialText('你好');
+    expect(
+      session.transcriptionStage,
+      TranscriptionProgressStage.receivingText,
+    );
 
     session.finishTranscription();
     expect(session.transcriptionRunning, isFalse);
